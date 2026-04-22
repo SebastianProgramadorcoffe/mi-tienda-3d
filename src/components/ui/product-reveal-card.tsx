@@ -8,22 +8,26 @@ import {
   useTransform,
   AnimatePresence,
 } from "framer-motion";
+import { formatearPrecio, calcularDescuento } from "../../lib/utils";
 
+// ─── Utilidad local de clases ─────────────────────────────────────────────────
 function cn(...classes: (string | undefined | false | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
+// ─── Tipo Product — esquema definitivo de Firestore ───────────────────────────
 export interface Product {
-  id: number;
-  name: string;
-  brand: string;
-  category: string;
-  price: string;
-  originalPrice?: string;
-  image: string;
-  tag?: string;
-  tagColor?: "rose" | "gold" | "emerald";
-  description: string;
+  id: string;                            // doc.id de Firestore
+  nombre: string;                        // campo: nombre (string)
+  marca?: string;                        // campo: marca (string)
+  categoria?: string;                    // campo: categoria (string)
+  precio: number;                        // campo: precio (number) ← para cálculos
+  precioOriginal?: number;               // campo: precioOriginal (number) ← opcional
+  imagen: string;                        // campo: imagen (string URL)
+  etiqueta?: string;                     // campo: etiqueta (string badge)
+  colorEtiqueta?: "rose" | "gold" | "emerald";
+  descripcion: string;                   // campo: descripcion (string)
+  stock?: number;                        // campo: stock (number) ← para futuro
 }
 
 export interface ProductRevealCardProps {
@@ -32,57 +36,61 @@ export interface ProductRevealCardProps {
   index?: number;
 }
 
-const TAG_STYLES: Record<string, string> = {
+// ─── Estilos de badges ────────────────────────────────────────────────────────
+const ESTILOS_ETIQUETA: Record<string, string> = {
   rose:    "bg-rose-500/20 border-rose-400/40 text-rose-300",
   gold:    "bg-amber-500/20 border-amber-400/40 text-amber-300",
   emerald: "bg-emerald-500/20 border-emerald-400/40 text-emerald-300",
 };
 
+// ─── Componente ───────────────────────────────────────────────────────────────
 export function ProductRevealCard({
   product,
   className,
   index = 0,
 }: ProductRevealCardProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [hovered, setHovered] = useState(false);
+  const [estaHovered, setEstaHovered] = useState(false);
 
-  const rawX = useMotionValue(0);
-  const rawY = useMotionValue(0);
+  const movimientoX = useMotionValue(0);
+  const movimientoY = useMotionValue(0);
 
-  const springCfg = { stiffness: 180, damping: 20, mass: 0.4 };
-  const xSpring = useSpring(rawX, springCfg);
-  const ySpring = useSpring(rawY, springCfg);
+  const springConfig = { stiffness: 180, damping: 20, mass: 0.4 };
+  const xSpring = useSpring(movimientoX, springConfig);
+  const ySpring = useSpring(movimientoY, springConfig);
 
   const rotateX = useTransform(ySpring, [-0.5, 0.5], ["15deg", "-15deg"]);
   const rotateY = useTransform(xSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
 
-  // ✅ Glare como CSS custom property via MotionValue — sin .get()
-  const glareX = useTransform(xSpring, [-0.5, 0.5], [10, 90]);
-  const glareY = useTransform(ySpring, [-0.5, 0.5], [10, 90]);
-
-  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+  function alMoverMouse(e: React.MouseEvent<HTMLDivElement>) {
     if (!ref.current) return;
     const { left, top, width, height } = ref.current.getBoundingClientRect();
-    rawX.set((e.clientX - left) / width - 0.5);
-    rawY.set((e.clientY - top) / height - 0.5);
+    movimientoX.set((e.clientX - left) / width - 0.5);
+    movimientoY.set((e.clientY - top) / height - 0.5);
   }
 
-  function onMouseLeave() {
-    rawX.set(0);
-    rawY.set(0);
-    setHovered(false);
+  function alSalirMouse() {
+    movimientoX.set(0);
+    movimientoY.set(0);
+    setEstaHovered(false);
   }
 
-  const tagStyle = TAG_STYLES[product.tagColor ?? "rose"];
+  // Calcular descuento si existe precio original
+  const porcentajeDescuento =
+    product.precioOriginal
+      ? calcularDescuento(product.precio, product.precioOriginal)
+      : 0;
+
+  const estiloEtiqueta = ESTILOS_ETIQUETA[product.colorEtiqueta ?? "rose"];
 
   return (
     <motion.div
       ref={ref}
       className={cn("relative cursor-pointer select-none", className)}
       style={{ perspective: "1100px" }}
-      onMouseMove={onMouseMove}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={onMouseLeave}
+      onMouseMove={alMoverMouse}
+      onMouseEnter={() => setEstaHovered(true)}
+      onMouseLeave={alSalirMouse}
       initial={{ opacity: 0, y: 60, scale: 0.94 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, margin: "-50px" }}
@@ -94,7 +102,7 @@ export function ProductRevealCard({
     >
       <motion.div
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-        className="relative w-full rounded-[2rem] overflow-hidden"
+        className="relative w-full rounded-4xl overflow-hidden"
       >
         {/* ── Imagen ── */}
         <div
@@ -102,28 +110,41 @@ export function ProductRevealCard({
           style={{ aspectRatio: "3/4" }}
         >
           <motion.img
-            src={product.image}
-            alt={product.name}
+            src={product.imagen}
+            alt={product.nombre}
             className="w-full h-full object-cover"
-            animate={{ scale: hovered ? 1.1 : 1 }}
+            animate={{ scale: estaHovered ? 1.1 : 1 }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-[#080510]/95 via-[#080510]/20 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-br from-rose-950/20 via-transparent to-transparent" />
-
-          {/* ✅ Glare — usa motion style con números, no strings con .get() */}
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            animate={{ opacity: hovered ? 1 : 0 }}
-            transition={{ duration: 0.3 }}
+          <div
+            className="absolute inset-0"
             style={{
-              background: "radial-gradient(circle at 50% 50%, rgba(255,192,203,0.18) 0%, transparent 55%)",
+              background:
+                "linear-gradient(to top, rgba(8,5,16,0.95) 0%, rgba(8,5,16,0.20) 50%, transparent 100%)",
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom right, rgba(76,5,25,0.20), transparent)",
             }}
           />
 
-          {/* Badge */}
-          {product.tag && (
+          {/* Glare hover */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            animate={{ opacity: estaHovered ? 1 : 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              background:
+                "radial-gradient(circle at 50% 50%, rgba(255,192,203,0.18) 0%, transparent 55%)",
+            }}
+          />
+
+          {/* Badge de etiqueta */}
+          {product.etiqueta && (
             <motion.div
               className="absolute top-4 left-4"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -133,20 +154,36 @@ export function ProductRevealCard({
               <span
                 className={cn(
                   "px-3 py-1 rounded-full text-[10px] font-bold tracking-[0.18em] uppercase backdrop-blur-sm border",
-                  tagStyle
+                  estiloEtiqueta
                 )}
               >
-                {product.tag}
+                {product.etiqueta}
               </span>
             </motion.div>
           )}
 
-          {/* Marca */}
-          <div className="absolute top-4 right-4">
-            <span className="text-[10px] tracking-[0.25em] uppercase text-white/30 font-medium">
-              {product.brand}
-            </span>
-          </div>
+          {/* Badge de descuento — se calcula automáticamente desde los numbers */}
+          {porcentajeDescuento > 0 && (
+            <motion.div
+              className="absolute top-4 right-4"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.12 + 0.5 }}
+            >
+              <span className="px-2 py-1 rounded-full text-[10px] font-bold tracking-wide bg-rose-600/80 border border-rose-400/40 text-white backdrop-blur-sm">
+                -{porcentajeDescuento}%
+              </span>
+            </motion.div>
+          )}
+
+          {/* Marca (solo si no hay descuento que la tape) */}
+          {product.marca && porcentajeDescuento === 0 && (
+            <div className="absolute top-4 right-4">
+              <span className="text-[10px] tracking-[0.25em] uppercase text-white/30 font-medium">
+                {product.marca}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Panel glassmorphism ── */}
@@ -157,23 +194,27 @@ export function ProductRevealCard({
           <div
             className="rounded-2xl p-4"
             style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
+              background:
+                "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
               border: "1px solid rgba(255,255,255,0.1)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+              boxShadow:
+                "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
             }}
           >
-            <p className="text-rose-300/70 text-[10px] tracking-[0.22em] uppercase font-medium mb-1">
-              {product.category}
-            </p>
+            {product.categoria && (
+              <p className="text-rose-300/70 text-[10px] tracking-[0.22em] uppercase font-medium mb-1">
+                {product.categoria}
+              </p>
+            )}
 
             <h3 className="text-white font-semibold text-base leading-snug tracking-tight mb-1">
-              {product.name}
+              {product.nombre}
             </h3>
 
             <AnimatePresence>
-              {hovered && (
+              {estaHovered && (
                 <motion.p
                   className="text-white/45 text-[11px] leading-relaxed mb-2"
                   initial={{ opacity: 0, height: 0 }}
@@ -181,29 +222,32 @@ export function ProductRevealCard({
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  {product.description}
+                  {product.descripcion}
                 </motion.p>
               )}
             </AnimatePresence>
 
+            {/* Precios — formateados desde number en tiempo real */}
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-rose-300 font-bold text-xl tracking-tight">
-                  {product.price}
+                  {formatearPrecio(product.precio)}
                 </span>
-                {product.originalPrice && (
+                {product.precioOriginal && (
                   <span className="text-white/30 text-xs line-through">
-                    {product.originalPrice}
+                    {formatearPrecio(product.precioOriginal)}
                   </span>
                 )}
               </div>
 
+              {/* Botón agregar al carrito */}
               <motion.button
                 className="w-9 h-9 rounded-full flex items-center justify-center bg-rose-500/80 border border-rose-400/30 text-white"
                 style={{ boxShadow: "0 4px 15px rgba(159,18,57,0.4)" }}
                 whileHover={{ scale: 1.1, backgroundColor: "rgba(251,113,133,0.95)" }}
                 whileTap={{ scale: 0.92 }}
-                aria-label="Agregar al carrito"
+                aria-label={`Agregar ${product.nombre} al carrito`}
+                // onClick={() => agregarAlCarrito(product)}
               >
                 <svg
                   width="16" height="16" viewBox="0 0 24 24"
@@ -218,7 +262,7 @@ export function ProductRevealCard({
             </div>
 
             <AnimatePresence>
-              {hovered && (
+              {estaHovered && (
                 <motion.button
                   className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold tracking-[0.18em] uppercase text-black"
                   style={{
@@ -230,6 +274,7 @@ export function ProductRevealCard({
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.2 }}
                   whileTap={{ scale: 0.97 }}
+                  // onClick={() => router.push(`/productos/${product.id}`)}
                 >
                   Ver Detalles
                 </motion.button>
@@ -240,9 +285,9 @@ export function ProductRevealCard({
 
         {/* Borde glow */}
         <motion.div
-          className="absolute inset-0 rounded-[2rem] pointer-events-none"
+          className="absolute inset-0 rounded-4xl pointer-events-none"
           animate={{
-            boxShadow: hovered
+            boxShadow: estaHovered
               ? "0 0 0 1.5px rgba(244,114,182,0.35), 0 25px 70px rgba(0,0,0,0.65), 0 0 60px rgba(244,114,182,0.08)"
               : "0 0 0 1px rgba(255,255,255,0.06), 0 15px 45px rgba(0,0,0,0.45)",
           }}
