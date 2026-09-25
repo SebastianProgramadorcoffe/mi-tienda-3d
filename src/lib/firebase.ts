@@ -1,4 +1,7 @@
 // ─── Firebase Core ────────────────────────────────────────────────────────────
+// Nota: Firebase Storage NO se usa (desde 2024 exige plan Blaze con tarjeta
+// incluso dentro del tier gratis). Las imágenes/modelos 3D se suben a
+// Cloudinary en su lugar — ver src/lib/storage.ts.
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";

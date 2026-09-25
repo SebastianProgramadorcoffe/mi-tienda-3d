@@ -1,51 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 import { useCarrito } from "../../context/CarritoContext";
 import { useAuth } from "../../context/AuthContext";
 import { formatearPrecio } from "../../lib/utils";
+import { WOMPI_LLAVE_PUBLICA, WOMPI_URL_CHECKOUT } from "../../lib/wompi";
 import { Navbar } from "../../components/Navbar";
 import { CarritoDrawer } from "../../components/CarritoDrawer";
 
-// ── Reemplaza con tu llave pública de Wompi ───────────────────────────────────
-const WOMPI_LLAVE_PUBLICA = "pub_test_qCTBUTQbPHTf0FEvZWUqZzsprY6hCnEv";
-const WOMPI_URL = "https://checkout.wompi.co/p/";
+function generarReferencia() {
+  return `AURA-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+}
 
 export default function PaginaCheckout() {
   const { items, totalPrecio, vaciar } = useCarrito();
-  const { usuario } = useAuth();
+  const { usuario, cargando: cargandoAuth } = useAuth();
+  const router = useRouter();
 
   const [nombre,    setNombre]    = useState(usuario?.displayName ?? "");
   const [email,     setEmail]     = useState(usuario?.email ?? "");
   const [telefono,  setTelefono]  = useState("");
   const [direccion, setDireccion] = useState("");
   const [ciudad,    setCiudad]    = useState("");
+  const [aceptoTerminos, setAceptoTerminos] = useState(false);
+  const [procesando, setProcesando] = useState(false);
 
-  // Genera referencia única para Wompi
-  const referencia = `AURA-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  // Se genera una sola vez por visita a la página (no en cada render/tecla),
+  // ya que se usa como ID del pedido en Firestore y en la URL de Wompi.
+  const [referencia] = useState(generarReferencia);
 
-  function irAWompi() {
-    if (!nombre || !email || !telefono || !direccion) {
+  // El checkout requiere sesión: así el pedido queda asociado a un usuario
+  // y las reglas de Firestore pueden verificar que el dueño lo está creando.
+  useEffect(() => {
+    if (!cargandoAuth && !usuario) router.replace("/login");
+  }, [cargandoAuth, usuario, router]);
+
+  async function irAWompi() {
+    if (!usuario || !nombre || !email || !telefono || !direccion) {
       alert("Por favor completa todos los campos");
       return;
     }
+    if (!aceptoTerminos) {
+      alert("Debes aceptar la Política de Tratamiento de Datos y los Términos y Condiciones para continuar.");
+      return;
+    }
 
-    // Wompi recibe el monto en centavos
-    const montoCentavos = totalPrecio * 100;
+    setProcesando(true);
+    try {
+      // Wompi recibe el monto en centavos
+      const montoCentavos = totalPrecio * 100;
 
-    const params = new URLSearchParams({
-      "public-key":            WOMPI_LLAVE_PUBLICA,
-      "currency":              "COP",
-      "amount-in-cents":       montoCentavos.toString(),
-      "reference":             referencia,
-      "customer-data:email":   email,
-      "customer-data:full-name": nombre,
-      "customer-data:phone-number": telefono,
-      "redirect-url":          `${window.location.origin}/checkout/confirmacion`,
-    });
+      await setDoc(doc(db, "pedidos", referencia), {
+        referencia,
+        userId: usuario.uid,
+        itemsSnapshot: items.map((item) => ({
+          productoId: item.producto.id,
+          nombre: item.producto.nombre,
+          precio: item.producto.precio,
+          cantidad: item.cantidad,
+          imagen: item.producto.imagen,
+        })),
+        total: totalPrecio,
+        envio: { nombre, email, telefono, direccion, ciudad },
+        aceptoTerminos,
+        estado: "pendiente",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
 
-    window.location.href = `${WOMPI_URL}?${params.toString()}`;
+      vaciar();
+
+      const params = new URLSearchParams({
+        "public-key":            WOMPI_LLAVE_PUBLICA,
+        "currency":              "COP",
+        "amount-in-cents":       montoCentavos.toString(),
+        "reference":             referencia,
+        "customer-data:email":   email,
+        "customer-data:full-name": nombre,
+        "customer-data:phone-number": telefono,
+        "redirect-url":          `${window.location.origin}/checkout/confirmacion?ref=${referencia}`,
+      });
+
+      window.location.href = `${WOMPI_URL_CHECKOUT}?${params.toString()}`;
+    } catch {
+      alert("No se pudo iniciar el pago. Intenta de nuevo.");
+      setProcesando(false);
+    }
   }
 
   if (items.length === 0) {
@@ -56,7 +102,7 @@ export default function PaginaCheckout() {
         <main className="min-h-screen flex items-center justify-center" style={{ background: "#080510" }}>
           <div className="text-center">
             <p className="text-white/40 text-sm mb-4">Tu carrito está vacío</p>
-            <a href="/" className="text-rose-300/70 text-xs underline">Volver a la tienda</a>
+            <Link href="/" className="text-rose-300/70 text-xs underline">Volver a la tienda</Link>
           </div>
         </main>
       </>
@@ -119,8 +165,8 @@ export default function PaginaCheckout() {
               <div className="rounded-2xl p-6 mb-6 space-y-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 {items.map((item) => (
                   <div key={item.producto.id} className="flex gap-4 items-center">
-                    <div className="w-12 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "#0d0810" }}>
-                      <img src={item.producto.imagen} alt={item.producto.nombre} className="w-full h-full object-cover" />
+                    <div className="relative w-12 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "#0d0810" }}>
+                      <Image src={item.producto.imagen} alt={item.producto.nombre} fill className="object-cover" sizes="48px" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{item.producto.nombre}</p>
@@ -150,18 +196,34 @@ export default function PaginaCheckout() {
                 </div>
               </div>
 
+              <label className="flex items-start gap-2 text-white/40 text-[11px] leading-relaxed mb-4">
+                <input type="checkbox" checked={aceptoTerminos} onChange={(e) => setAceptoTerminos(e.target.checked)}
+                  className="mt-0.5" required />
+                <span>
+                  Acepto la{" "}
+                  <Link href="/politica-de-privacidad" target="_blank" className="underline text-rose-300/70 hover:text-rose-300">
+                    Política de Tratamiento de Datos
+                  </Link>
+                  {" "}y los{" "}
+                  <Link href="/terminos-y-condiciones" target="_blank" className="underline text-rose-300/70 hover:text-rose-300">
+                    Términos y Condiciones
+                  </Link>, incluyendo el uso de mis datos de envío para procesar este pedido.
+                </span>
+              </label>
+
               {/* Botón Wompi */}
               <motion.button
                 onClick={irAWompi}
+                disabled={procesando}
                 className="w-full py-4 rounded-2xl text-sm font-bold tracking-widest uppercase text-black flex items-center justify-center gap-3"
-                style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", boxShadow: "0 8px 30px rgba(244,63,94,0.3)" }}
-                whileHover={{ scale: 1.02, boxShadow: "0 12px 40px rgba(244,63,94,0.4)" }}
+                style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", boxShadow: "0 8px 30px rgba(244,63,94,0.3)", opacity: procesando ? 0.7 : 1 }}
+                whileHover={{ scale: procesando ? 1 : 1.02, boxShadow: "0 12px 40px rgba(244,63,94,0.4)" }}
                 whileTap={{ scale: 0.98 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
                 </svg>
-                Pagar con Wompi
+                {procesando ? "Procesando..." : "Pagar con Wompi"}
               </motion.button>
 
               <p className="text-white/20 text-[10px] text-center mt-3 leading-relaxed">

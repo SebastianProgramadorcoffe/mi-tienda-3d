@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CarritoProvider } from "../context/CarritoContext";
 import { AuthProvider } from "../context/AuthContext";
+import { FavoritosProvider } from "../context/FavoritosContext";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -18,9 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <CarritoProvider>
-            {children}
-          </CarritoProvider>
+          <FavoritosProvider>
+            <CarritoProvider>
+              {children}
+            </CarritoProvider>
+          </FavoritosProvider>
         </AuthProvider>
       </body>
     </html>

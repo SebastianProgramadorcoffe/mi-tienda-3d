@@ -6,23 +6,35 @@ import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
 import { formatearPrecio, calcularDescuento } from "../../lib/utils";
 import { useCarrito } from "../../context/CarritoContext";
+import { useFavoritos } from "../../context/FavoritosContext";
 
 function cn(...classes: (string | undefined | false | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }
+
+export interface Modelo3D {
+  url: string;
+  tipo: "glb" | "gltf";
+}
+
+export type Genero = "dama" | "caballero" | "unisex";
 
 export interface Product {
   id: string;
   nombre: string;
   marca?: string;
   categoria?: string;
+  genero?: Genero;
   precio: number;
   precioOriginal?: number;
   imagen: string;
+  imagenes?: string[];
+  modelo3d?: Modelo3D;
   etiqueta?: string;
   colorEtiqueta?: "rose" | "gold" | "emerald";
   descripcion: string;
   stock?: number;
+  activo?: boolean;
 }
 
 export interface ProductRevealCardProps {
@@ -42,6 +54,8 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
   const [estaHovered, setEstaHovered] = useState(false);
   const [agregado, setAgregado] = useState(false);
   const { agregar, abrirCarrito } = useCarrito();
+  const { esFavorito, alternarFavorito } = useFavoritos();
+  const favorito = esFavorito(product.id);
 
   const movimientoX = useMotionValue(0);
   const movimientoY = useMotionValue(0);
@@ -73,6 +87,12 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
     setTimeout(() => setAgregado(false), 1500);
   }
 
+  function alAlternarFavorito(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    alternarFavorito(product.id);
+  }
+
   const porcentajeDescuento = product.precioOriginal
     ? calcularDescuento(product.precio, product.precioOriginal)
     : 0;
@@ -83,12 +103,13 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
     <motion.div
       ref={ref}
       className={cn("relative cursor-pointer select-none", className)}
-      style={{ perspective: "1100px" }}
+      style={{ perspective: "1100px", zIndex: estaHovered ? 30 : 1 }}
       onMouseMove={alMoverMouse}
       onMouseEnter={() => setEstaHovered(true)}
       onMouseLeave={alSalirMouse}
       initial={{ opacity: 0, y: 60, scale: 0.94 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={{ scale: 1.18, y: -14, transition: { type: "spring", stiffness: 300, damping: 20, delay: 0 } }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.75, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
     >
@@ -106,7 +127,6 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
             className="object-cover transition-transform duration-700"
             style={{ transform: estaHovered ? "scale(1.1)" : "scale(1)" }}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            unoptimized
           />
 
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(8,5,16,0.95) 0%, rgba(8,5,16,0.20) 50%, transparent 100%)" }} />
@@ -127,47 +147,64 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
             </motion.div>
           )}
 
+          {/* Favorito */}
+          <motion.button
+            onClick={alAlternarFavorito}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm border"
+            style={{
+              background: favorito ? "rgba(244,63,94,0.85)" : "rgba(8,5,16,0.45)",
+              borderColor: favorito ? "rgba(244,114,182,0.5)" : "rgba(255,255,255,0.15)",
+            }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            aria-label={favorito ? `Quitar ${product.nombre} de favoritos` : `Agregar ${product.nombre} a favoritos`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={favorito ? "white" : "none"} stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </motion.button>
+
           {porcentajeDescuento > 0 ? (
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-14 right-4">
               <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-rose-600/80 border border-rose-400/40 text-white backdrop-blur-sm">
                 -{porcentajeDescuento}%
               </span>
             </div>
           ) : product.marca ? (
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-14 right-4">
               <span className="text-[10px] tracking-[0.25em] uppercase text-white/30 font-medium">{product.marca}</span>
             </div>
           ) : null}
         </div>
 
         {/* ── Panel glassmorphism ── */}
-        <motion.div className="absolute bottom-0 left-0 right-0 p-4" style={{ translateZ: "45px" }}>
-          <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)" }}>
+        <motion.div className="absolute bottom-0 left-0 right-0 p-3" style={{ translateZ: "45px" }}>
+          <div className="rounded-2xl p-3" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)" }}>
             {product.categoria && (
-              <p className="text-rose-300/70 text-[10px] tracking-[0.22em] uppercase font-medium mb-1">{product.categoria}</p>
+              <p className="text-rose-300/70 text-[9px] tracking-[0.2em] uppercase font-medium mb-0.5">{product.categoria}</p>
             )}
 
-            <h3 className="text-white font-semibold text-base leading-snug tracking-tight mb-1">{product.nombre}</h3>
+            <h3 className="text-white font-semibold text-sm leading-snug tracking-tight mb-0.5 line-clamp-1">{product.nombre}</h3>
 
             <AnimatePresence>
               {estaHovered && (
-                <motion.p className="text-white/45 text-[11px] leading-relaxed mb-2" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+                <motion.p className="text-white/45 text-[10px] leading-relaxed mb-1.5 line-clamp-2" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
                   {product.descripcion}
                 </motion.p>
               )}
             </AnimatePresence>
 
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-rose-300 font-bold text-xl tracking-tight">{formatearPrecio(product.precio)}</span>
+            <div className="flex items-center justify-between mt-1.5">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-rose-300 font-bold text-base tracking-tight">{formatearPrecio(product.precio)}</span>
                 {product.precioOriginal && (
-                  <span className="text-white/30 text-xs line-through">{formatearPrecio(product.precioOriginal)}</span>
+                  <span className="text-white/30 text-[11px] line-through">{formatearPrecio(product.precioOriginal)}</span>
                 )}
               </div>
 
               <motion.button
                 onClick={alAgregarCarrito}
-                className="w-9 h-9 rounded-full flex items-center justify-center border text-white"
+                className="w-8 h-8 rounded-full flex items-center justify-center border text-white flex-shrink-0"
                 style={{
                   background: agregado ? "rgba(34,197,94,0.8)" : "rgba(244,63,94,0.8)",
                   borderColor: agregado ? "rgba(34,197,94,0.4)" : "rgba(244,114,182,0.3)",
@@ -196,7 +233,7 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.2 }}>
                   {/* ✅ Link en lugar de <a> */}
                   <Link
-                    href={`/producto/${product.id}`}
+                    href={`/producto?id=${product.id}`}
                     className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold tracking-[0.18em] uppercase text-black flex items-center justify-center"
                     style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", boxShadow: "0 4px 20px rgba(159,18,57,0.3)" }}
                   >
@@ -210,7 +247,7 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
 
         <motion.div
           className="absolute inset-0 rounded-4xl pointer-events-none"
-          animate={{ boxShadow: estaHovered ? "0 0 0 1.5px rgba(244,114,182,0.35), 0 25px 70px rgba(0,0,0,0.65), 0 0 60px rgba(244,114,182,0.08)" : "0 0 0 1px rgba(255,255,255,0.06), 0 15px 45px rgba(0,0,0,0.45)" }}
+          animate={{ boxShadow: estaHovered ? "0 0 0 2px rgba(244,114,182,0.55), 0 40px 100px rgba(0,0,0,0.75), 0 0 90px rgba(244,114,182,0.18)" : "0 0 0 1px rgba(255,255,255,0.06), 0 15px 45px rgba(0,0,0,0.45)" }}
           transition={{ duration: 0.35 }}
         />
       </motion.div>

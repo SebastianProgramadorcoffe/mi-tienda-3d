@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCarrito } from "../context/CarritoContext";
 import { useAuth } from "../context/AuthContext";
+import { useFavoritos } from "../context/FavoritosContext";
 
 interface NavbarProps {
   onBuscar?: (texto: string) => void;
@@ -13,7 +14,8 @@ interface NavbarProps {
 
 export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
   const { totalItems, toggleCarrito } = useCarrito();
-  const { usuario, cerrarSesion } = useAuth();
+  const { totalFavoritos } = useFavoritos();
+  const { usuario, rol, cerrarSesion } = useAuth();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [busquedaActiva, setBusquedaActiva] = useState(false);
 
@@ -102,6 +104,29 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             </svg>
           </button>
 
+          {/* Favoritos */}
+          <Link
+            href="/favoritos"
+            className="relative w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            style={{ background: "rgba(255,255,255,0.06)" }}
+            aria-label="Favoritos"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {totalFavoritos > 0 && (
+              <motion.span
+                key={totalFavoritos}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-black"
+                style={{ background: "linear-gradient(135deg, #f43f5e, #fbbf24)" }}
+              >
+                {totalFavoritos}
+              </motion.span>
+            )}
+          </Link>
+
           {/* Carrito */}
           <button
             onClick={toggleCarrito}
@@ -175,6 +200,12 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
                         className="flex items-center gap-3 px-4 py-3 text-white/60 hover:text-white hover:bg-white/5 text-xs transition-colors">
                         Mi cuenta
                       </Link>
+                      {(rol === "admin" || rol === "empleado") && (
+                        <Link href="/admin" onClick={() => setMenuUsuario(false)}
+                          className="flex items-center gap-3 px-4 py-3 text-amber-300/90 hover:text-amber-200 hover:bg-amber-500/10 text-xs font-medium transition-colors">
+                          Panel {rol === "admin" ? "admin" : "empleado"}
+                        </Link>
+                      )}
                       <button
                         onClick={() => { cerrarSesion(); setMenuUsuario(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-rose-400/80 hover:text-rose-300 hover:bg-rose-500/10 text-xs transition-colors"

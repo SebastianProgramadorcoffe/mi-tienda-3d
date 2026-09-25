@@ -1,18 +1,93 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 5, 21);
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+    function rolDe(uid) {
+      return get(/databases/$(database)/documents/usuarios/$(uid)).data.rol;
+    }
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+    function esStaff() {
+      return estaAutenticado() && rolDe(request.auth.uid) in ['admin', 'empleado'];
+    }
+    function esAdmin() {
+      return estaAutenticado() && rolDe(request.auth.uid) == 'admin';
+    }
+
+    // ─── usuarios/{uid} ───────────────────────────────────────────────────
+    // Perfil + rol de cada cuenta. El doc se crea automáticamente al
+    // iniciar sesión (ver AuthContext) y siempre nace con rol 'cliente':
+    // nadie puede auto-asignarse admin/empleado.
+    match /usuarios/{uid} {
+      allow get: if estaAutenticado() && (request.auth.uid == uid || esStaff());
+      allow list: if esAdmin();
+      allow create: if estaAutenticado()
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.rol == 'cliente';
+      allow update: if estaAutenticado()
+                    && (
+                      (request.auth.uid == uid
+                       && request.resource.data.rol == resource.data.rol)
+                      || esAdmin()
+                    );
+      allow delete: if false;
+    }
+
+    // ─── productos/{id} ───────────────────────────────────────────────────
+    // Catálogo público de lectura; solo staff (admin/empleado) puede
+    // crear, editar o borrar productos.
+    match /productos/{id} {
+      allow read: if true;
+      allow create, update, delete: if esStaff();
+    }
+
+    // ─── pedidos/{referencia} ─────────────────────────────────────────────
+    // El cliente crea su propio pedido (al ir a pagar) y SIEMPRE nace en
+    // estado 'pendiente' — nadie puede crear un pedido ya "pagado" sin
+    // pasar por Wompi. Al volver de Wompi, el propio dueño puede pasar su
+    // pedido de 'pendiente' a un estado terminal (eso hace
+    // /checkout/confirmacion), pero solo tocando estado/wompiTransactionId/
+    // updatedAt — no puede reescribir el total, los items ni nada más.
+    // Staff puede actualizar cualquier campo en cualquier momento. Sin
+    // borrado.
+    match /pedidos/{referencia} {
+      // "list" exige que la consulta ya venga filtrada por userId==uid
+      // (ver /cuenta); si no, Firestore rechaza la consulta completa antes
+      // de devolver un solo documento, así un cliente nunca puede listar
+      // los pedidos de otra persona.
+      allow get: if estaAutenticado()
+                 && (resource.data.userId == request.auth.uid || esStaff());
+      allow list: if esStaff()
+                  || (estaAutenticado() && resource.data.userId == request.auth.uid);
+      allow create: if estaAutenticado()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.estado == 'pendiente';
+      allow update: if esStaff()
+                    || (
+                      estaAutenticado()
+                      && resource.data.userId == request.auth.uid
+                      && resource.data.estado == 'pendiente'
+                      && request.resource.data.estado in ['pagado', 'fallido', 'cancelado']
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['estado', 'wompiTransactionId', 'updatedAt'])
+                    );
+      allow delete: if false;
+    }
+
+    // ─── suscriptores/{email} ───────────────────────────────────────────────
+    // Newsletter: cualquier visitante (sin sesión) puede suscribirse, pero
+    // solo el propio email como dueño de su documento (id == email) y con
+    // consentimiento explícito. Nadie puede leer la lista de correos salvo
+    // el staff — es información personal de terceros.
+    match /suscriptores/{email} {
+      allow get, list, delete: if esStaff();
+      allow create, update: if request.resource.data.email is string
+                             && request.resource.data.email == email
+                             && request.resource.data.aceptoTerminos == true;
     }
   }
 }

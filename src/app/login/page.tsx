@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 
 export default function PaginaLogin() {
@@ -10,6 +11,7 @@ export default function PaginaLogin() {
   const [nombre,   setNombre]   = useState("");
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
+  const [aceptoTerminos, setAceptoTerminos] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [error,    setError]    = useState("");
   const [exito,    setExito]    = useState("");
@@ -35,7 +37,12 @@ export default function PaginaLogin() {
         await iniciarSesion(email, password);
         router.push("/");
       } else if (modo === "registro") {
-        await registrarse(email, password, nombre);
+        if (!aceptoTerminos) {
+          setError("Debes aceptar la Política de Tratamiento de Datos y los Términos y Condiciones.");
+          setCargando(false);
+          return;
+        }
+        await registrarse(email, password, nombre, aceptoTerminos);
         router.push("/");
       } else {
         await recuperarPassword(email);
@@ -127,6 +134,15 @@ export default function PaginaLogin() {
         )}
 
         {modo !== "recovery" && (
+          <p className="text-white/20 text-[10px] text-center leading-relaxed mb-6">
+            Al continuar con Google, aceptas nuestra{" "}
+            <Link href="/politica-de-privacidad" className="underline hover:text-white/40">Política de Tratamiento de Datos</Link>
+            {" "}y{" "}
+            <Link href="/terminos-y-condiciones" className="underline hover:text-white/40">Términos y Condiciones</Link>.
+          </p>
+        )}
+
+        {modo !== "recovery" && (
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
             <span className="text-white/20 text-[10px] uppercase tracking-widest">o</span>
@@ -153,6 +169,23 @@ export default function PaginaLogin() {
               <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Contraseña</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }} />
             </div>
+          )}
+
+          {modo === "registro" && (
+            <label className="flex items-start gap-2 text-white/40 text-[11px] leading-relaxed">
+              <input type="checkbox" checked={aceptoTerminos} onChange={(e) => setAceptoTerminos(e.target.checked)}
+                className="mt-0.5" required />
+              <span>
+                Acepto la{" "}
+                <Link href="/politica-de-privacidad" target="_blank" className="underline text-rose-300/70 hover:text-rose-300">
+                  Política de Tratamiento de Datos
+                </Link>
+                {" "}y los{" "}
+                <Link href="/terminos-y-condiciones" target="_blank" className="underline text-rose-300/70 hover:text-rose-300">
+                  Términos y Condiciones
+                </Link>.
+              </span>
+            </label>
           )}
 
           {error && <p className="text-rose-400 text-xs">{error}</p>}
