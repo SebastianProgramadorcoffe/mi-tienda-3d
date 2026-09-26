@@ -108,10 +108,17 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
       onMouseEnter={() => setEstaHovered(true)}
       onMouseLeave={alSalirMouse}
       initial={{ opacity: 0, y: 60, scale: 0.94 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      whileInView={{
+        opacity: 1, y: 0, scale: 1,
+        transition: { duration: 0.75, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] },
+      }}
       whileHover={{ scale: 1.18, y: -14, transition: { type: "spring", stiffness: 300, damping: 20, delay: 0 } }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.75, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
+      // Transition "por defecto": la usa la vuelta al reposo al sacar el
+      // cursor (whileInView ya trae la suya para el reveal en scroll, así
+      // que esto solo aplica al salir del hover). Antes heredaba la misma
+      // duración/delay del reveal y la tarjeta tardaba en volver a su lugar.
+      transition={{ type: "spring", stiffness: 400, damping: 32 }}
     >
       <motion.div
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
