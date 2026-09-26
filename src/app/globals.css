@@ -18,31 +18,15 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* ── Scrollbar a juego con la marca (rosa/dorado sobre fondo oscuro) en vez
-   del scrollbar gris por defecto del navegador, que desentonaba con el
-   resto de la tienda ── */
+/* ── Barra de scroll oculta (el scroll sigue funcionando normal, solo no
+   se dibuja la barra) ── */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(244, 63, 94, 0.5) rgba(8, 5, 16, 0.3);
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* versiones viejas de Edge */
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(8, 5, 16, 0.3);
-}
-::-webkit-scrollbar-thumb {
-  background-color: rgba(244, 63, 94, 0.5);
-  background-image: linear-gradient(180deg, #f43f5e, #fbbf24);
-  background-clip: padding-box;
-  border: 2px solid transparent;
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background-image: linear-gradient(180deg, #fb7185, #fcd34d);
-  background-clip: padding-box;
+  display: none;              /* Chrome, Edge, Safari */
 }
 
 /* ── Capa de texto de pdf.js (para seleccionar/copiar texto de una página
