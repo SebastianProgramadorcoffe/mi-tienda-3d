@@ -14,7 +14,7 @@ una caja negra.
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -164,7 +164,7 @@ def main():
             "estado": "datos_insuficientes",
             "filasDisponibles": int(len(df_crudo)),
             "minimoRequerido": MINIMO_FILAS_PARA_ENTRENAR,
-            "generadoEn": datetime.utcnow(),
+            "generadoEn": datetime.now(timezone.utc),
         })
         return
 
@@ -207,7 +207,7 @@ def main():
             "tendencia": tendencia,
             "promocionSugerida": promocion_sugerida,
             "descuentoSugeridoPct": descuento_sugerido,
-            "generadoEn": datetime.utcnow(),
+            "generadoEn": datetime.now(timezone.utc),
         })
         operaciones_en_lote += 1
         confirmar_si_lote_lleno()
@@ -217,7 +217,7 @@ def main():
         "estado": "ok",
         "metricas": metricas,
         "productosPredichos": int(df_grilla["productoId"].nunique()),
-        "generadoEn": datetime.utcnow(),
+        "generadoEn": datetime.now(timezone.utc),
     })
 
     lote.commit()

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from firebase_client import obtener_firestore
 
@@ -19,7 +20,8 @@ def obtener_ventas_dataframe() -> pd.DataFrame:
     db = obtener_firestore()
     filas = []
 
-    for doc in db.collection("pedidos").where("estado", "==", "pagado").stream():
+    consulta = db.collection("pedidos").where(filter=FieldFilter("estado", "==", "pagado"))
+    for doc in consulta.stream():
         pedido = doc.to_dict()
         creado_en = pedido.get("createdAt")
         if creado_en is None:
