@@ -1,0 +1,26 @@
+name: Predicciones de ventas (Random Forest)
+
+on:
+  schedule:
+    # Todos los días a las 08:00 UTC (~03:00 hora Colombia)
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  entrenar-y-predecir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r ml/requirements.txt
+
+      - name: Entrenar modelo y escribir predicciones en Firestore
+        working-directory: ml
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: python entrenar_predecir.py

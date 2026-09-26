@@ -42,3 +42,9 @@ next-env.d.ts
 
 # herramientas locales (estado del agente, no parte del proyecto)
 .serena/
+
+# módulo ml/: datos exportados de Firestore (ventas reales) y entorno Python
+ml/data/
+ml/.venv/
+ml/__pycache__/
+*.pyc
