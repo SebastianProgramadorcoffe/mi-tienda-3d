@@ -18,6 +18,14 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
   const { usuario, rol, cerrarSesion } = useAuth();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [busquedaActiva, setBusquedaActiva] = useState(false);
+  const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
+
+  const enlacesNav = [
+    { href: "/",          label: "Inicio"    },
+    { href: "/catalogo",  label: "Catálogo"  },
+    { href: "/nosotros",  label: "Nosotros"  },
+    { href: "/contacto",  label: "Contacto"  },
+  ];
 
   return (
     <motion.nav
@@ -52,12 +60,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
 
         {/* Links centrales */}
         <div className="hidden md:flex items-center gap-8">
-          {[
-            { href: "/",          label: "Inicio"    },
-            { href: "/catalogo",  label: "Catálogo"  },
-            { href: "/nosotros",  label: "Nosotros"  },
-            { href: "/contacto",  label: "Contacto"  },
-          ].map((link) => (
+          {enlacesNav.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -236,8 +239,57 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Menú móvil (hamburguesa) — los enlaces centrales están ocultos con
+              "hidden md:flex" arriba, así que por debajo de md esto es la
+              única forma de llegar a Catálogo/Nosotros/Contacto/Afíliate. */}
+          <button
+            onClick={() => setMenuMovilAbierto(!menuMovilAbierto)}
+            className="md:hidden w-11 h-11 -mr-1 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            style={{ background: "rgba(255,255,255,0.06)" }}
+            aria-label={menuMovilAbierto ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={menuMovilAbierto}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {menuMovilAbierto ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 6h18M3 12h18M3 18h18" />}
+            </svg>
+          </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {menuMovilAbierto && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="md:hidden overflow-hidden"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <div className="px-6 py-4 flex flex-col gap-1">
+              {enlacesNav.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuMovilAbierto(false)}
+                  className="text-white/60 hover:text-white text-sm tracking-widest uppercase py-3 transition-colors duration-200"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/afiliacion"
+                onClick={() => setMenuMovilAbierto(false)}
+                className="mt-2 px-4 py-3 rounded-full text-xs tracking-widest uppercase font-semibold text-center transition-colors duration-200"
+                style={{ border: "1px solid rgba(244,114,182,0.5)", color: "rgba(253,164,175,1)" }}
+              >
+                Afíliate
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.nav>
   );
 }
