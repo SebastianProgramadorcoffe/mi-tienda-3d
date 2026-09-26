@@ -20,9 +20,11 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
   const [busquedaActiva, setBusquedaActiva] = useState(false);
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
 
+  // "Catálogo" no está: Inicio ya muestra el catálogo completo con hero,
+  // así que tenerlo aparte era un link redundante a lo mismo que se está
+  // viendo. La página /catalogo sigue existiendo por si algo más la enlaza.
   const enlacesNav = [
     { href: "/",          label: "Inicio"    },
-    { href: "/catalogo",  label: "Catálogo"  },
     { href: "/nosotros",  label: "Nosotros"  },
     { href: "/contacto",  label: "Contacto"  },
   ];
