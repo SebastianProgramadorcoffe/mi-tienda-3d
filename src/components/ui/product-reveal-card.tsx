@@ -124,6 +124,10 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
             src={product.imagen}
             alt={product.nombre}
             fill
+            // La primera fila (los primeros 4 en desktop) suele quedar
+            // sobre el pliegue y Next.js la marcaba como LCP sin priority,
+            // avisando en consola que le faltaba loading="eager".
+            priority={index < 4}
             className="object-cover transition-transform duration-700"
             style={{ transform: estaHovered ? "scale(1.1)" : "scale(1)" }}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
