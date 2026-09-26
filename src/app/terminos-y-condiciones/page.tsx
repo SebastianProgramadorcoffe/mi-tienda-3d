@@ -94,7 +94,7 @@ export default function PaginaTerminos() {
           <Seccion titulo="7. Propiedad intelectual">
             <p>
               El contenido de este sitio (textos, imágenes, marca y diseño) es propiedad de Aura
-              Esencia o de sus respectivos titulares, y no puede reproducirse sin autorización.
+              & Esencia o de sus respectivos titulares, y no puede reproducirse sin autorización.
             </p>
           </Seccion>
 
