@@ -9,7 +9,7 @@ import { db } from "../../lib/firebase";
 import { subirImagenProducto, subirModelo3D, ErrorSubida } from "../../lib/storage";
 import { urlCloudinaryOptimizada } from "../../lib/cloudinaryImagen";
 import { useAuth } from "../../context/AuthContext";
-import type { Product, Genero } from "../ui/product-reveal-card";
+import type { Product, Genero, VarianteColor } from "../ui/product-reveal-card";
 
 const CATEGORIAS = [
   "Labiales", "Fragancias", "Base de Maquillaje", "Skincare", "Ojos",
@@ -43,7 +43,26 @@ export function ProductoForm({ producto }: ProductoFormProps) {
   const [precioOriginal, setPrecioOriginal] = useState(String(producto?.precioOriginal ?? ""));
   const [descripcion, setDescripcion] = useState(producto?.descripcion ?? "");
   const [stock, setStock] = useState(String(producto?.stock ?? ""));
+  const [codigoProveedor, setCodigoProveedor] = useState(producto?.codigoProveedor ?? "");
   const [activo, setActivo] = useState(producto?.activo ?? true);
+
+  // Colores del mismo producto (opcional). Si hay al menos uno, el stock
+  // total se calcula solo (suma de cada color) y el campo "código proveedor"
+  // de arriba deja de usarse — cada color tiene el suyo.
+  type FilaVariante = { color: string; codigoProveedor: string; stock: string };
+  const [variantes, setVariantes] = useState<FilaVariante[]>(
+    producto?.variantes?.map((v) => ({ color: v.color, codigoProveedor: v.codigoProveedor, stock: String(v.stock) })) ?? []
+  );
+
+  function agregarFilaVariante() {
+    setVariantes((prev) => [...prev, { color: "", codigoProveedor: "", stock: "" }]);
+  }
+  function actualizarFilaVariante(i: number, campo: keyof FilaVariante, valor: string) {
+    setVariantes((prev) => prev.map((v, idx) => (idx === i ? { ...v, [campo]: valor } : v)));
+  }
+  function quitarFilaVariante(i: number) {
+    setVariantes((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   const [imagenesExistentes, setImagenesExistentes] = useState<string[]>(producto?.imagenes ?? (producto?.imagen ? [producto.imagen] : []));
   const [imagenesNuevas, setImagenesNuevas] = useState<File[]>([]);
@@ -65,8 +84,13 @@ export function ProductoForm({ producto }: ProductoFormProps) {
       setError("Nombre y precio son obligatorios.");
       return;
     }
-    if (stock.trim() === "") {
+    const tieneVariantes = variantes.length > 0;
+    if (!tieneVariantes && stock.trim() === "") {
       setError("La cantidad en stock es obligatoria (usa 0 si está agotado).");
+      return;
+    }
+    if (tieneVariantes && variantes.some((v) => !v.color.trim() || !v.codigoProveedor.trim() || v.stock.trim() === "")) {
+      setError("Cada color necesita nombre, código de proveedor y stock (usa 0 si está agotado).");
       return;
     }
     if (imagenesExistentes.length === 0 && imagenesNuevas.length === 0) {
@@ -85,6 +109,13 @@ export function ProductoForm({ producto }: ProductoFormProps) {
 
       const modelo3d = modeloNuevo ? await subirModelo3D(modeloNuevo) : modeloActual;
 
+      const variantesGuardadas: VarianteColor[] = tieneVariantes
+        ? variantes.map((v) => ({ color: v.color.trim(), codigoProveedor: v.codigoProveedor.trim(), stock: Number(v.stock) }))
+        : [];
+      const stockTotal = tieneVariantes
+        ? variantesGuardadas.reduce((acc, v) => acc + v.stock, 0)
+        : Number(stock);
+
       const datos = {
         nombre: nombre.trim(),
         marca: marca.trim(),
@@ -93,7 +124,9 @@ export function ProductoForm({ producto }: ProductoFormProps) {
         precio: Number(precio),
         precioOriginal: precioOriginal ? Number(precioOriginal) : null,
         descripcion: descripcion.trim(),
-        stock: Number(stock),
+        stock: stockTotal,
+        codigoProveedor: tieneVariantes ? null : (codigoProveedor.trim() || null),
+        variantes: tieneVariantes ? variantesGuardadas : null,
         activo,
         imagen: imagenes[0],
         imagenes,
@@ -163,10 +196,61 @@ export function ProductoForm({ producto }: ProductoFormProps) {
             className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={inputStyle} />
         </div>
         <div>
-          <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Stock</label>
-          <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} required
+          <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">
+            Stock{variantes.length > 0 ? " (suma de los colores)" : ""}
+          </label>
+          {variantes.length > 0 ? (
+            <p className="w-full px-4 py-3 rounded-xl text-white/50 text-sm" style={inputStyle}>
+              {variantes.reduce((acc, v) => acc + (Number(v.stock) || 0), 0)}
+            </p>
+          ) : (
+            <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} required
+              className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={inputStyle} />
+          )}
+        </div>
+      </div>
+
+      {variantes.length === 0 && (
+        <div>
+          <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Código proveedor (opcional)</label>
+          <input value={codigoProveedor} onChange={(e) => setCodigoProveedor(e.target.value)}
             className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={inputStyle} />
         </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-white/40 text-[10px] uppercase tracking-widest">Colores (opcional)</label>
+          <button type="button" onClick={agregarFilaVariante} className="text-rose-300/70 hover:text-rose-300 text-[10px] uppercase tracking-widest">
+            + Agregar color
+          </button>
+        </div>
+        {variantes.length === 0 ? (
+          <p className="text-white/20 text-[11px]">
+            Si este producto viene en varios colores del mismo proveedor (mismo nombre, distinto código), agregalos acá en vez de crear un producto por cada uno.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {variantes.map((v, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_80px_32px] gap-2 items-center">
+                <input placeholder="Color (ej. Palo Rosa)" value={v.color}
+                  onChange={(e) => actualizarFilaVariante(i, "color", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-white text-xs outline-none" style={inputStyle} />
+                <input placeholder="Código proveedor" value={v.codigoProveedor}
+                  onChange={(e) => actualizarFilaVariante(i, "codigoProveedor", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-white text-xs outline-none" style={inputStyle} />
+                <input type="number" min="0" placeholder="Stock" value={v.stock}
+                  onChange={(e) => actualizarFilaVariante(i, "stock", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-white text-xs outline-none" style={inputStyle} />
+                <button type="button" onClick={() => quitarFilaVariante(i)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-rose-400 transition-colors"
+                  style={{ background: "rgba(255,255,255,0.04)" }} aria-label="Quitar color">
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>

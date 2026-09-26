@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
 import { formatearPrecio, calcularDescuento } from "../../lib/utils";
@@ -19,6 +20,17 @@ export interface Modelo3D {
 
 export type Genero = "dama" | "caballero" | "unisex";
 
+// Mismo producto en distintos colores (ej. un delineador que el proveedor
+// vende en 6 tonos, cada uno con su propio código). Cuando un producto tiene
+// variantes, "stock" a nivel raíz es la SUMA de variantes[].stock (así el
+// resto del código — analíticas, alertas de stock bajo, ficha simple — no
+// necesita saber si hay colores o no).
+export interface VarianteColor {
+  codigoProveedor: string;
+  color: string;
+  stock: number;
+}
+
 export interface Product {
   id: string;
   nombre: string;
@@ -34,6 +46,8 @@ export interface Product {
   colorEtiqueta?: "rose" | "gold" | "emerald";
   descripcion: string;
   stock?: number;
+  codigoProveedor?: string;
+  variantes?: VarianteColor[];
   activo?: boolean;
 }
 
@@ -51,9 +65,11 @@ const ESTILOS_ETIQUETA: Record<string, string> = {
 
 export function ProductRevealCard({ product, className, index = 0 }: ProductRevealCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const [estaHovered, setEstaHovered] = useState(false);
   const [agregado, setAgregado] = useState(false);
   const { agregar, abrirCarrito } = useCarrito();
+  const tieneVariantes = (product.variantes?.length ?? 0) > 0;
   const { esFavorito, alternarFavorito } = useFavoritos();
   const favorito = esFavorito(product.id);
 
@@ -81,6 +97,13 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
   function alAgregarCarrito(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    // Si tiene variantes de color hace falta elegir cuál — la tarjeta del
+    // catálogo no tiene espacio para un selector, así que se manda a la
+    // ficha del producto en vez de agregar un color al azar.
+    if (tieneVariantes) {
+      router.push(`/producto?id=${product.id}`);
+      return;
+    }
     agregar(product);
     setAgregado(true);
     abrirCarrito();
@@ -223,7 +246,7 @@ export function ProductRevealCard({ product, className, index = 0 }: ProductReve
                 }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.92 }}
-                aria-label={`Agregar ${product.nombre} al carrito`}
+                aria-label={tieneVariantes ? `Elegir color de ${product.nombre}` : `Agregar ${product.nombre} al carrito`}
               >
                 <AnimatePresence mode="wait">
                   {agregado ? (

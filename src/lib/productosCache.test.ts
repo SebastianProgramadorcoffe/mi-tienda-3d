@@ -36,5 +36,28 @@ describe("mapearProducto", () => {
     expect(producto.colorEtiqueta).toBe("rose");
     expect(producto.activo).toBe(true);
     expect(producto.stock).toBeUndefined();
+    expect(producto.variantes).toBeUndefined();
+  });
+
+  it("mapea las variantes de color de un producto con varios tonos", () => {
+    const producto = mapearProducto("delineador-1", {
+      nombre: "Ya! Delineador Multiusos",
+      precio: 22500,
+      variantes: [
+        { codigoProveedor: "6265", color: "Palo Rosa", stock: 3 },
+        { codigoProveedor: "6267", color: "Torreo", stock: 0 },
+      ],
+      stock: 3,
+    });
+
+    expect(producto.variantes).toHaveLength(2);
+    expect(producto.variantes?.[0]).toEqual({ codigoProveedor: "6265", color: "Palo Rosa", stock: 3 });
+    expect(producto.variantes?.[1].color).toBe("Torreo");
+  });
+
+  it("no confunde un valor no-array en 'variantes' con una lista de colores", () => {
+    const producto = mapearProducto("dato-corrupto", { variantes: "no es un array" });
+
+    expect(producto.variantes).toBeUndefined();
   });
 });

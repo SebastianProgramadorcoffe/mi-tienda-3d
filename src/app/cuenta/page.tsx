@@ -15,7 +15,7 @@ interface Pedido {
   referencia: string;
   total: number;
   estado: "pendiente" | "pagado" | "fallido" | "cancelado";
-  itemsSnapshot?: { nombre: string; cantidad: number }[];
+  itemsSnapshot?: { nombre: string; cantidad: number; color?: string | null }[];
   createdAt?: { toDate: () => Date };
 }
 
@@ -77,7 +77,7 @@ function CuentaContenido() {
                     </span>
                   </div>
                   <p className="text-white/30 text-xs mb-1">
-                    {p.itemsSnapshot?.map((i) => `${i.cantidad}× ${i.nombre}`).join(", ")}
+                    {p.itemsSnapshot?.map((i) => `${i.cantidad}× ${i.nombre}${i.color ? ` (${i.color})` : ""}`).join(", ")}
                   </p>
                   <p className="text-rose-300 text-sm font-bold">{formatearPrecio(p.total)}</p>
                 </div>

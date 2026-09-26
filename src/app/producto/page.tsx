@@ -13,7 +13,7 @@ import { useFavoritos } from "../../context/FavoritosContext";
 import { Navbar } from "../../components/Navbar";
 import { CarritoDrawer } from "../../components/CarritoDrawer";
 import { Footer } from "../../components/Footer";
-import type { Product } from "../../components/ui/product-reveal-card";
+import type { Product, VarianteColor } from "../../components/ui/product-reveal-card";
 import { urlCloudinaryOptimizada } from "../../lib/cloudinaryImagen";
 
 function DetalleProducto() {
@@ -24,6 +24,7 @@ function DetalleProducto() {
   const [vista, setVista] = useState<"fotos" | "3d">("fotos");
   const [imagenActiva, setImagenActiva] = useState(0);
   const [agregado, setAgregado] = useState(false);
+  const [varianteSeleccionada, setVarianteSeleccionada] = useState<VarianteColor | null>(null);
   const { agregar, abrirCarrito } = useCarrito();
   const { esFavorito, alternarFavorito } = useFavoritos();
 
@@ -31,17 +32,26 @@ function DetalleProducto() {
     if (!id) return;
     getDoc(doc(db, "productos", id)).then((snap) => {
       if (!snap.exists()) setError("No encontramos este producto.");
-      else setProducto({ id: snap.id, ...snap.data() } as Product);
+      else {
+        const datos = { id: snap.id, ...snap.data() } as Product;
+        setProducto(datos);
+        // Por defecto se preselecciona el primer color con stock (o el
+        // primero de todos si están todos agotados).
+        if (datos.variantes?.length) {
+          setVarianteSeleccionada(datos.variantes.find((v) => v.stock > 0) ?? datos.variantes[0]);
+        }
+      }
       setCargando(false);
     });
   }, [id]);
 
   const imagenes = producto?.imagenes?.length ? producto.imagenes : producto ? [producto.imagen] : [];
   const descuento = producto?.precioOriginal ? calcularDescuento(producto.precio, producto.precioOriginal) : 0;
+  const stockDisponible = varianteSeleccionada ? varianteSeleccionada.stock : producto?.stock;
 
   function alAgregar() {
     if (!producto) return;
-    agregar(producto);
+    agregar(producto, varianteSeleccionada ?? undefined);
     setAgregado(true);
     abrirCarrito();
     setTimeout(() => setAgregado(false), 1500);
@@ -141,22 +151,51 @@ function DetalleProducto() {
 
                 <p className="text-white/50 text-sm leading-relaxed mb-8">{producto.descripcion}</p>
 
-                {typeof producto.stock === "number" && (
+                {producto.variantes && producto.variantes.length > 0 && (
+                  <div className="mb-6">
+                    <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">
+                      Color{varianteSeleccionada ? `: ${varianteSeleccionada.color}` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {producto.variantes.map((v) => (
+                        <button
+                          key={v.codigoProveedor}
+                          type="button"
+                          onClick={() => setVarianteSeleccionada(v)}
+                          disabled={v.stock === 0}
+                          className="px-4 py-2 rounded-full text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                          style={{
+                            border: varianteSeleccionada?.codigoProveedor === v.codigoProveedor
+                              ? "1px solid rgba(244,114,182,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                            background: varianteSeleccionada?.codigoProveedor === v.codigoProveedor
+                              ? "rgba(244,63,94,0.15)" : "rgba(255,255,255,0.03)",
+                            color: varianteSeleccionada?.codigoProveedor === v.codigoProveedor
+                              ? "rgba(253,164,175,1)" : "rgba(255,255,255,0.5)",
+                          }}
+                        >
+                          {v.color}{v.stock === 0 ? " (agotado)" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {typeof stockDisponible === "number" && (
                   <p className="text-white/30 text-xs mb-6">
-                    {producto.stock > 0 ? `${producto.stock} disponibles` : "Agotado temporalmente"}
+                    {stockDisponible > 0 ? `${stockDisponible} disponibles` : "Agotado temporalmente"}
                   </p>
                 )}
 
                 <div className="flex gap-3">
                   <motion.button
                     onClick={alAgregar}
-                    disabled={producto.stock === 0}
+                    disabled={stockDisponible === 0}
                     className="flex-1 py-4 rounded-2xl text-sm font-bold tracking-widest uppercase text-black"
                     style={{
                       background: agregado ? "rgba(34,197,94,0.9)" : "linear-gradient(90deg, #fda4af, #fcd34d)",
-                      opacity: producto.stock === 0 ? 0.5 : 1,
+                      opacity: stockDisponible === 0 ? 0.5 : 1,
                     }}
-                    whileHover={{ scale: producto.stock === 0 ? 1 : 1.02 }}
+                    whileHover={{ scale: stockDisponible === 0 ? 1 : 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     {agregado ? "Agregado ✓" : "Agregar al carrito"}

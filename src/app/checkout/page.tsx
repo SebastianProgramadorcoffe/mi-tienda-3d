@@ -66,6 +66,8 @@ export default function PaginaCheckout() {
           precioOriginal: item.producto.precioOriginal ?? null,
           cantidad: item.cantidad,
           imagen: item.producto.imagen,
+          color: item.variante?.color ?? null,
+          codigoProveedor: item.variante?.codigoProveedor ?? item.producto.codigoProveedor ?? null,
         })),
         total: totalPrecio,
         envio: { nombre, email, telefono, direccion, ciudad },
@@ -165,12 +167,13 @@ export default function PaginaCheckout() {
 
               <div className="rounded-2xl p-6 mb-6 space-y-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 {items.map((item) => (
-                  <div key={item.producto.id} className="flex gap-4 items-center">
+                  <div key={`${item.producto.id}::${item.variante?.color ?? ""}`} className="flex gap-4 items-center">
                     <div className="relative w-12 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "#0d0810" }}>
                       <Image src={item.producto.imagen} alt={item.producto.nombre} fill className="object-cover" sizes="48px" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{item.producto.nombre}</p>
+                      {item.variante && <p className="text-white/30 text-xs">Color: {item.variante.color}</p>}
                       <p className="text-white/30 text-xs">Cantidad: {item.cantidad}</p>
                     </div>
                     <p className="text-rose-300 text-sm font-bold flex-shrink-0">

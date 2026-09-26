@@ -9,7 +9,7 @@
 // agrega productos.
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Product } from "../components/ui/product-reveal-card";
+import type { Product, VarianteColor } from "../components/ui/product-reveal-card";
 
 const TTL_MS = 5 * 60 * 1000;
 
@@ -32,6 +32,8 @@ export function mapearProducto(id: string, d: Record<string, unknown>): Product 
     colorEtiqueta: (d.colorEtiqueta as Product["colorEtiqueta"]) ?? "rose",
     descripcion: (d.descripcion as string) ?? "",
     stock: d.stock !== null && d.stock !== undefined ? Number(d.stock) : undefined,
+    codigoProveedor: (d.codigoProveedor as string) ?? undefined,
+    variantes: Array.isArray(d.variantes) ? (d.variantes as VarianteColor[]) : undefined,
     activo: (d.activo as boolean) ?? true,
   };
 }

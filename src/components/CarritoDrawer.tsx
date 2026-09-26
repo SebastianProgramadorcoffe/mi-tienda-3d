@@ -9,7 +9,7 @@ import { formatearPrecio } from "../lib/utils";
 export function CarritoDrawer() {
   const {
     items, abierto, cerrarCarrito,
-    quitar, cambiarCantidad,
+    quitar, cambiarCantidad, claveItem,
     totalPrecio, totalItems, vaciar,
   } = useCarrito();
 
@@ -91,9 +91,11 @@ export function CarritoDrawer() {
                 </div>
               ) : (
                 <AnimatePresence>
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const clave = claveItem(item.producto.id, item.variante?.color);
+                    return (
                     <motion.div
-                      key={item.producto.id}
+                      key={clave}
                       layout
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -124,6 +126,9 @@ export function CarritoDrawer() {
                         <p className="text-white text-sm font-medium leading-tight truncate">
                           {item.producto.nombre}
                         </p>
+                        {item.variante && (
+                          <p className="text-white/35 text-[11px] mt-0.5">Color: {item.variante.color}</p>
+                        )}
                         <p className="text-rose-300 text-sm font-bold mt-1">
                           {formatearPrecio(item.producto.precio)}
                         </p>
@@ -131,7 +136,7 @@ export function CarritoDrawer() {
                         {/* Control de cantidad */}
                         <div className="flex items-center gap-2 mt-2">
                           <button
-                            onClick={() => cambiarCantidad(item.producto.id, item.cantidad - 1)}
+                            onClick={() => cambiarCantidad(clave, item.cantidad - 1)}
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-sm"
                             style={{ background: "rgba(255,255,255,0.08)" }}
                           >−</button>
@@ -141,13 +146,13 @@ export function CarritoDrawer() {
                           </span>
 
                           <button
-                            onClick={() => cambiarCantidad(item.producto.id, item.cantidad + 1)}
+                            onClick={() => cambiarCantidad(clave, item.cantidad + 1)}
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors text-sm"
                             style={{ background: "rgba(255,255,255,0.08)" }}
                           >+</button>
 
                           <button
-                            onClick={() => quitar(item.producto.id)}
+                            onClick={() => quitar(clave)}
                             className="ml-auto text-white/20 hover:text-rose-400 transition-colors"
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +162,8 @@ export function CarritoDrawer() {
                         </div>
                       </div>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </div>

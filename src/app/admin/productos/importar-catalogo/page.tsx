@@ -2,14 +2,23 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, collection, setDoc, serverTimestamp, query, where, limit, getDocs } from "firebase/firestore";
+import { doc, collection, setDoc, updateDoc, serverTimestamp, query, where, limit, getDocs } from "firebase/firestore";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { db } from "../../../../lib/firebase";
 import { subirImagenProducto, ErrorSubida } from "../../../../lib/storage";
 import { useAuth } from "../../../../context/AuthContext";
 import { cargarPdf, detectarCandidatos, renderizarPagina, type CandidatoProducto } from "../../../../lib/pdfCatalogo";
 import { RecortadorPagina } from "../../../../components/admin/RecortadorPagina";
-import type { Genero } from "../../../../components/ui/product-reveal-card";
+import type { Genero, VarianteColor } from "../../../../components/ui/product-reveal-card";
+
+const NUEVO_PRODUCTO = "__nuevo__";
+interface ProductoSesion {
+  id: string;
+  nombre: string;
+  codigoProveedor?: string;  // solo si se creó sin color (variantes vacío)
+  stock: number;
+  variantes: VarianteColor[]; // [] si se creó sin color todavía
+}
 
 const CATEGORIAS = [
   "Labiales", "Fragancias", "Base de Maquillaje", "Skincare", "Ojos",
@@ -48,6 +57,7 @@ export default function ImportarCatalogoPage() {
   const [precio, setPrecio] = useState("");
   const [precioOriginal, setPrecioOriginal] = useState("");
   const [codigo, setCodigo] = useState("");
+  const [color, setColor] = useState("");
   const [stock, setStock] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [esNuevo, setEsNuevo] = useState(false);
@@ -57,6 +67,11 @@ export default function ImportarCatalogoPage() {
   const [generandoRecorte, setGenerandoRecorte] = useState(false);
   const [productosCreados, setProductosCreados] = useState(0);
   const [mensajeExito, setMensajeExito] = useState("");
+
+  // Productos creados en esta misma sesión de importación — para poder
+  // agregarle un color a uno recién creado en vez de duplicarlo.
+  const [productosSesion, setProductosSesion] = useState<ProductoSesion[]>([]);
+  const [productoDestino, setProductoDestino] = useState<string>(NUEVO_PRODUCTO);
 
   const candidatoActual = candidatos[indice];
 
@@ -101,12 +116,19 @@ export default function ImportarCatalogoPage() {
     setPrecio(String(candidato.precio));
     setPrecioOriginal(candidato.precioOriginal ? String(candidato.precioOriginal) : "");
     setCodigo(candidato.codigo);
+    setColor("");
     setStock("");
     setDescripcion("");
     setEsNuevo(candidato.esNuevo);
     setCategoria(CATEGORIAS[0]);
     setGenero("unisex");
     setMensajeExito("");
+    // Si el nombre coincide con uno ya creado en esta sesión (típico de un
+    // mismo producto listado varias veces, uno por color), se preselecciona
+    // como destino en vez de "Producto nuevo" — el admin lo puede cambiar.
+    const nombreNormalizado = candidato.nombre.trim().toLowerCase();
+    const coincidencia = productosSesion.find((p) => p.nombre.trim().toLowerCase() === nombreNormalizado);
+    setProductoDestino(coincidencia?.id ?? NUEVO_PRODUCTO);
     // Si el catálogo referencia otra página (ej. "Pág. 15" en una portada),
     // esa suele tener la foto dedicada del producto — se muestra esa de
     // entrada en vez de la página del teaser.
@@ -152,15 +174,70 @@ export default function ImportarCatalogoPage() {
     setMensajeExito("");
     setGuardando(true);
     marcarEstado(candidatoActual.id, "creando");
+
+    const codigoNormalizado = codigo.trim();
+    const colorNormalizado = color.trim();
+    const destino = productosSesion.find((p) => p.id === productoDestino);
+
+    // ── Camino 1: agregar este color a un producto ya creado en esta sesión ──
+    if (destino) {
+      if (!codigoNormalizado || !colorNormalizado) {
+        setError("Para agregar un color hacen falta el código de proveedor y el nombre del color.");
+        marcarEstado(candidatoActual.id, "pendiente");
+        setGuardando(false);
+        return;
+      }
+      if (destino.variantes.some((v) => v.codigoProveedor === codigoNormalizado)) {
+        setError(`"${destino.nombre}" ya tiene un color con el código ${codigoNormalizado}.`);
+        marcarEstado(candidatoActual.id, "pendiente");
+        setGuardando(false);
+        return;
+      }
+      try {
+        // Si el producto destino todavía no tenía colores (se creó como
+        // producto simple), su código/stock originales pasan a ser el
+        // "primer color" — con un nombre genérico que se puede renombrar
+        // después desde /admin/productos.
+        const variantesPrevias: VarianteColor[] = destino.variantes.length > 0
+          ? destino.variantes
+          : [{ codigoProveedor: destino.codigoProveedor ?? "SIN-CODIGO", color: "Color original", stock: destino.stock }];
+        const nuevaVariante: VarianteColor = { codigoProveedor: codigoNormalizado, color: colorNormalizado, stock: Number(stock) };
+        const variantesFinales = [...variantesPrevias, nuevaVariante];
+        const stockTotal = variantesFinales.reduce((acc, v) => acc + v.stock, 0);
+
+        await updateDoc(doc(db, "productos", destino.id), {
+          variantes: variantesFinales,
+          codigoProveedor: null,
+          stock: stockTotal,
+          updatedAt: serverTimestamp(),
+        });
+
+        setProductosSesion((prev) => prev.map((p) => (p.id === destino.id ? { ...p, variantes: variantesFinales, stock: stockTotal } : p)));
+        marcarEstado(candidatoActual.id, "creado");
+        setProductosCreados((n) => n + 1);
+        const avisoBackfill = destino.variantes.length === 0
+          ? ` El color anterior quedó como "Color original" — renombralo desde /admin/productos si querés.`
+          : "";
+        setMensajeExito(`✓ Color "${colorNormalizado}" agregado a "${destino.nombre}".${avisoBackfill}`);
+        setCodigo(""); setColor(""); setStock("");
+      } catch (err) {
+        marcarEstado(candidatoActual.id, "pendiente");
+        setError(err instanceof ErrorSubida ? err.message : "No se pudo agregar el color. Intenta de nuevo.");
+      } finally {
+        setGuardando(false);
+      }
+      return;
+    }
+
+    // ── Camino 2: crear un producto nuevo (con o sin color) ──
     try {
-      const codigoNormalizado = codigo.trim();
       if (codigoNormalizado) {
         const existentes = await getDocs(
           query(collection(db, "productos"), where("codigoProveedor", "==", codigoNormalizado), limit(1))
         );
         if (!existentes.empty) {
           const existente = existentes.docs[0].data();
-          setError(`Ya existe un producto con el código ${codigoNormalizado}: "${existente.nombre}". Cambia el código o edita el producto existente.`);
+          setError(`Ya existe un producto con el código ${codigoNormalizado}: "${existente.nombre}". Cambia el código, o elegilo como destino arriba para agregarle este color.`);
           marcarEstado(candidatoActual.id, "pendiente");
           setGuardando(false);
           return;
@@ -178,10 +255,15 @@ export default function ImportarCatalogoPage() {
         }
       }
 
+      const variantesIniciales: VarianteColor[] = colorNormalizado
+        ? [{ codigoProveedor: codigoNormalizado, color: colorNormalizado, stock: Number(stock) }]
+        : [];
+
       await setDoc(doc(db, "productos", productoId), {
         nombre: nombre.trim(),
         marca: "Yanbal",
-        codigoProveedor: codigoNormalizado || null,
+        codigoProveedor: colorNormalizado ? null : (codigoNormalizado || null),
+        variantes: colorNormalizado ? variantesIniciales : null,
         categoria,
         genero,
         precio: Number(precio),
@@ -199,6 +281,15 @@ export default function ImportarCatalogoPage() {
         updatedAt: serverTimestamp(),
       });
 
+      setProductosSesion((prev) => [...prev, {
+        id: productoId,
+        nombre: nombre.trim(),
+        codigoProveedor: colorNormalizado ? undefined : (codigoNormalizado || undefined),
+        stock: Number(stock),
+        variantes: variantesIniciales,
+      }]);
+      setProductoDestino(NUEVO_PRODUCTO);
+
       marcarEstado(candidatoActual.id, "creado");
       setProductosCreados((n) => n + 1);
       setMensajeExito(`✓ "${nombre.trim()}" creado. Puedes agregar otro producto de esta misma imagen (algunos catálogos agrupan varios en una foto), o pasar al siguiente.`);
@@ -210,6 +301,7 @@ export default function ImportarCatalogoPage() {
       setPrecio("");
       setPrecioOriginal("");
       setCodigo("");
+      setColor("");
       setStock("");
       setDescripcion("");
       setEsNuevo(false);
@@ -320,6 +412,28 @@ export default function ImportarCatalogoPage() {
               <p className="text-white/20 text-[11px] -mt-2">
                 Si el catálogo trae &quot;P. Normal $ N&quot;, ese es el precio normal y el que aparece como &quot;OFERTA&quot; va en Precio oferta. Si solo hay un precio, deja Precio normal vacío.
               </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Color (opcional)</label>
+                  <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="ej. Palo Rosa"
+                    className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Agregar color a</label>
+                  <select value={productoDestino} onChange={(e) => setProductoDestino(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none" style={inputStyle}>
+                    <option value={NUEVO_PRODUCTO} style={{ background: "#0d0810" }}>— Producto nuevo —</option>
+                    {productosSesion.map((p) => (
+                      <option key={p.id} value={p.id} style={{ background: "#0d0810" }}>{p.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-white/20 text-[11px] -mt-2">
+                Si este color es de un producto que ya creaste en esta importación (mismo nombre, distinto código), elegilo acá en vez de &quot;Producto nuevo&quot; — se agrega como otro color en vez de duplicar la tarjeta en la tienda.
+              </p>
+
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-white/40 text-[10px] uppercase tracking-widest block mb-1.5">Categoría</label>
@@ -371,7 +485,7 @@ export default function ImportarCatalogoPage() {
                 <button onClick={alCrearProducto} disabled={guardando || generandoRecorte}
                   className="flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-black"
                   style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", opacity: guardando || generandoRecorte ? 0.7 : 1 }}>
-                  {guardando ? "Creando..." : generandoRecorte ? "Generando recorte..." : "Crear producto"}
+                  {guardando ? "Guardando..." : generandoRecorte ? "Generando recorte..." : productoDestino !== NUEVO_PRODUCTO ? "Agregar color" : "Crear producto"}
                 </button>
               </div>
               <button onClick={alSiguienteProducto} disabled={indice >= candidatos.length - 1}

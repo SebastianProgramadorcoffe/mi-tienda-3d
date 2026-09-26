@@ -1,12 +1,20 @@
 "use client";
 
 import { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { Product } from "../components/ui/product-reveal-card";
+import { Product, VarianteColor } from "../components/ui/product-reveal-card";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export interface ItemCarrito {
   producto: Product;
+  variante?: VarianteColor; // color elegido, si el producto tiene variantes
   cantidad: number;
+}
+
+// El mismo producto puede estar dos veces en el carrito en colores distintos,
+// así que la identidad de una línea es producto.id + color de la variante
+// (no solo producto.id).
+function claveItem(productoId: string, colorVariante?: string): string {
+  return `${productoId}::${colorVariante ?? ""}`;
 }
 
 interface EstadoCarrito {
@@ -15,9 +23,9 @@ interface EstadoCarrito {
 }
 
 type AccionCarrito =
-  | { type: "AGREGAR"; producto: Product }
-  | { type: "QUITAR"; id: string }
-  | { type: "CAMBIAR_CANTIDAD"; id: string; cantidad: number }
+  | { type: "AGREGAR"; producto: Product; variante?: VarianteColor }
+  | { type: "QUITAR"; clave: string }
+  | { type: "CAMBIAR_CANTIDAD"; clave: string; cantidad: number }
   | { type: "VACIAR" }
   | { type: "TOGGLE_CARRITO" }
   | { type: "ABRIR_CARRITO" }
@@ -29,42 +37,44 @@ interface ContextoCarrito {
   abierto: boolean;
   totalItems: number;
   totalPrecio: number;
-  agregar: (producto: Product) => void;
-  quitar: (id: string) => void;
-  cambiarCantidad: (id: string, cantidad: number) => void;
+  agregar: (producto: Product, variante?: VarianteColor) => void;
+  quitar: (clave: string) => void;
+  cambiarCantidad: (clave: string, cantidad: number) => void;
   vaciar: () => void;
   toggleCarrito: () => void;
   abrirCarrito: () => void;
   cerrarCarrito: () => void;
+  claveItem: (productoId: string, colorVariante?: string) => string;
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 function reducerCarrito(estado: EstadoCarrito, accion: AccionCarrito): EstadoCarrito {
   switch (accion.type) {
     case "AGREGAR": {
-      const existe = estado.items.find((i) => i.producto.id === accion.producto.id);
+      const clave = claveItem(accion.producto.id, accion.variante?.color);
+      const existe = estado.items.find((i) => claveItem(i.producto.id, i.variante?.color) === clave);
       if (existe) {
         return {
           ...estado,
           items: estado.items.map((i) =>
-            i.producto.id === accion.producto.id
+            claveItem(i.producto.id, i.variante?.color) === clave
               ? { ...i, cantidad: i.cantidad + 1 }
               : i
           ),
         };
       }
-      return { ...estado, items: [...estado.items, { producto: accion.producto, cantidad: 1 }] };
+      return { ...estado, items: [...estado.items, { producto: accion.producto, variante: accion.variante, cantidad: 1 }] };
     }
     case "QUITAR":
-      return { ...estado, items: estado.items.filter((i) => i.producto.id !== accion.id) };
+      return { ...estado, items: estado.items.filter((i) => claveItem(i.producto.id, i.variante?.color) !== accion.clave) };
     case "CAMBIAR_CANTIDAD":
       if (accion.cantidad <= 0) {
-        return { ...estado, items: estado.items.filter((i) => i.producto.id !== accion.id) };
+        return { ...estado, items: estado.items.filter((i) => claveItem(i.producto.id, i.variante?.color) !== accion.clave) };
       }
       return {
         ...estado,
         items: estado.items.map((i) =>
-          i.producto.id === accion.id ? { ...i, cantidad: accion.cantidad } : i
+          claveItem(i.producto.id, i.variante?.color) === accion.clave ? { ...i, cantidad: accion.cantidad } : i
         ),
       };
     case "VACIAR":
@@ -111,13 +121,14 @@ export function CarritoProvider({ children }: { children: ReactNode }) {
       abierto: estado.abierto,
       totalItems,
       totalPrecio,
-      agregar: (producto) => dispatch({ type: "AGREGAR", producto }),
-      quitar: (id) => dispatch({ type: "QUITAR", id }),
-      cambiarCantidad: (id, cantidad) => dispatch({ type: "CAMBIAR_CANTIDAD", id, cantidad }),
+      agregar: (producto, variante) => dispatch({ type: "AGREGAR", producto, variante }),
+      quitar: (clave) => dispatch({ type: "QUITAR", clave }),
+      cambiarCantidad: (clave, cantidad) => dispatch({ type: "CAMBIAR_CANTIDAD", clave, cantidad }),
       vaciar: () => dispatch({ type: "VACIAR" }),
       toggleCarrito: () => dispatch({ type: "TOGGLE_CARRITO" }),
       abrirCarrito: () => dispatch({ type: "ABRIR_CARRITO" }),
       cerrarCarrito: () => dispatch({ type: "CERRAR_CARRITO" }),
+      claveItem,
     }}>
       {children}
     </CarritoCtx.Provider>
