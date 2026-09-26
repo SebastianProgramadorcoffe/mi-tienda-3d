@@ -40,7 +40,7 @@ export default function PaginaPoliticaPrivacidad() {
 
           <Seccion titulo="1. Responsable del tratamiento">
             <p>
-              <strong>Aura Esencia</strong> [Razón social / NIT — completa este dato], con correo de
+              <strong>Aura & Esencia</strong> [Razón social / NIT — completa este dato], con correo de
               contacto <a href="mailto:contacto@auraesencia.com" className="underline text-rose-300/70">contacto@auraesencia.com</a>,
               es responsable del tratamiento de los datos personales que recolecta a través de este
               sitio web, en cumplimiento de la Ley 1581 de 2012 y el Decreto 1377 de 2013 de Colombia.

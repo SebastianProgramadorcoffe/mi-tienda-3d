@@ -9,7 +9,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aura Esencia — Belleza que Transforma",
+  title: "Aura & Esencia — Belleza que Transforma",
   description: "Tienda virtual de cosméticos de lujo. Yanbal, Ésika, Avon y Natura.",
   keywords: ["cosméticos", "belleza", "fragancias", "maquillaje", "Yanbal", "Ésika", "Avon", "Natura"],
 };

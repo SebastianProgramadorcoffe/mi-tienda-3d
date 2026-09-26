@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import { obtenerProductos } from "../lib/productosCache";
 import { whatsappHref } from "../lib/whatsapp";
 import { ProductRevealCard, type Product, type Genero } from "./ui/product-reveal-card";
@@ -328,32 +327,11 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
             </div>
           )}
 
-          {/* Footer CTA (solo en home; en /catalogo ya estás aquí) */}
-          {mostrarHero && !cargando && productosFiltrados.length > 0 && (
-            <motion.div
-              className="text-center mt-20"
-              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            >
-              <p className="text-white/25 text-xs uppercase mb-6" style={{ letterSpacing: "0.3em" }}>
-                {productos.length} productos en catálogo
-              </p>
-              <Link href="/catalogo">
-                <motion.span
-                  className="inline-block px-10 py-3.5 rounded-full text-sm font-medium uppercase text-white"
-                  style={{ letterSpacing: "0.15em", border: "1px solid rgba(255,255,255,0.15)" }}
-                  whileHover={{ borderColor: "rgba(244,114,182,0.5)", backgroundColor: "rgba(244,63,94,0.08)", scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Ver Catálogo Completo
-                </motion.span>
-              </Link>
-            </motion.div>
-          )}
         </div>
 
         {/* WhatsApp flotante */}
         <motion.a
-          href={whatsappHref("Hola, me interesa un producto de Aura Esencia")}
+          href={whatsappHref("Hola, me interesa un producto de Aura & Esencia")}
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl"

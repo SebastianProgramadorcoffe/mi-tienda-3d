@@ -27,7 +27,7 @@ export default function PaginaNosotros() {
             style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontFamily: "'Cormorant Garamond', serif", fontWeight: 300 }}
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           >
-            Sobre <span style={{ color: "rgba(255,210,225,0.9)", fontStyle: "italic" }}>Aura Esencia</span>
+            Sobre <span style={{ color: "rgba(255,210,225,0.9)", fontStyle: "italic" }}>Aura & Esencia</span>
           </motion.h1>
 
           <motion.div
@@ -35,7 +35,7 @@ export default function PaginaNosotros() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           >
             <p>
-              Aura Esencia nace con una idea simple: reunir en un solo lugar las mejores marcas de
+              Aura & Esencia nace con una idea simple: reunir en un solo lugar las mejores marcas de
               cosméticos y cuidado personal, con una experiencia de compra tan cuidada como los
               productos que ofrecemos.
             </p>

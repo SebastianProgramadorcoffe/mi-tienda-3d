@@ -76,7 +76,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             className="text-white font-semibold tracking-wide text-sm whitespace-nowrap logo-brillo"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
           >
-            Aura Esencia
+            Aura & Esencia
           </span>
         </Link>
 

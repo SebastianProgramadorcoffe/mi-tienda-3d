@@ -71,7 +71,7 @@ export default function PaginaLogin() {
   }
 
   const titulos = { login: "Bienvenida", registro: "Crear cuenta", recovery: "Recuperar contraseña" };
-  const subtitulos = { login: "Accede a tu cuenta de Aura Esencia", registro: "Únete a nuestra comunidad de belleza", recovery: "Te enviaremos un enlace a tu correo" };
+  const subtitulos = { login: "Accede a tu cuenta de Aura & Esencia", registro: "Únete a nuestra comunidad de belleza", recovery: "Te enviaremos un enlace a tu correo" };
 
   return (
     <main className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden" style={{ background: "#080510" }}>
@@ -101,7 +101,7 @@ export default function PaginaLogin() {
           <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f43f5e, #fbbf24)" }}>
             <span className="text-black font-bold text-xs">AE</span>
           </div>
-          <span className="text-white font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>Aura Esencia</span>
+          <span className="text-white font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>Aura & Esencia</span>
         </div>
 
         {/* Título */}

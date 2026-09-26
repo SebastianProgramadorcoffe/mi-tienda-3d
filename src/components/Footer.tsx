@@ -132,7 +132,7 @@ export function Footer() {
       <BarraConfianza />
 
       <div className="px-6 py-5 text-center">
-        <p className="text-white/25 text-[11px]">© {new Date().getFullYear()} Aura Esencia. Todos los derechos reservados.</p>
+        <p className="text-white/25 text-[11px]">© {new Date().getFullYear()} Aura & Esencia. Todos los derechos reservados.</p>
       </div>
     </footer>
   );

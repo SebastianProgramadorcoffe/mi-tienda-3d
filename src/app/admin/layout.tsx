@@ -33,7 +33,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         style={{ background: "rgba(8,5,16,0.9)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
       >
         <Link href="/" className="text-white/50 hover:text-white text-xs uppercase tracking-widest transition-colors">
-          ← Aura Esencia
+          ← Aura & Esencia
         </Link>
         <nav className="flex items-center gap-6">
           {ENLACES.filter((e) => !e.soloAdmin || rol === "admin").map((enlace) => (

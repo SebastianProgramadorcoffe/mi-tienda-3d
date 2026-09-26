@@ -10,7 +10,7 @@ const CANALES = [
   {
     nombre: "WhatsApp",
     valor: "+57 300 123 4567",
-    href: whatsappHref("Hola, tengo una pregunta sobre Aura Esencia"),
+    href: whatsappHref("Hola, tengo una pregunta sobre Aura & Esencia"),
     color: "#25D366",
   },
   {

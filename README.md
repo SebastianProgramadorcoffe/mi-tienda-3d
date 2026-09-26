@@ -1,4 +1,4 @@
-# Aura Esencia
+# Aura & Esencia
 
 Tienda virtual de cosméticos (Yanbal, Ésika, Avon, Natura) con roles de
 cliente/empleado/administrador, visualización 3D de producto, favoritos,

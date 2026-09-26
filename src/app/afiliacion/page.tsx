@@ -35,7 +35,7 @@ const PASOS = [
   "Empiezas a hacer pedidos con tu descuento de afiliada y accedes a premios desde tu primera campaña.",
 ];
 
-const MENSAJE_WHATSAPP = "Hola, quiero información para afiliarme al equipo de Aura Esencia.";
+const MENSAJE_WHATSAPP = "Hola, quiero información para afiliarme al equipo de Aura & Esencia.";
 
 export default function PaginaAfiliacion() {
   return (

@@ -39,7 +39,7 @@ export default function PaginaTerminos() {
 
           <Seccion titulo="1. Objeto">
             <p>
-              Estos términos regulan el uso del sitio web de <strong>Aura Esencia</strong> y la compra
+              Estos términos regulan el uso del sitio web de <strong>Aura & Esencia</strong> y la compra
               de productos de cosmética y cuidado personal ofrecidos a través de esta plataforma.
               Al usar el sitio o realizar una compra, aceptas estos términos.
             </p>
@@ -64,7 +64,7 @@ export default function PaginaTerminos() {
           <Seccion titulo="4. Pago">
             <p>
               Los pagos se procesan a través de <strong>Wompi</strong>, aceptando tarjetas débito/crédito,
-              PSE y Nequi. Aura Esencia no almacena datos de tarjetas; esa información es gestionada
+              PSE y Nequi. Aura & Esencia no almacena datos de tarjetas; esa información es gestionada
               directamente por la pasarela de pago.
             </p>
           </Seccion>
