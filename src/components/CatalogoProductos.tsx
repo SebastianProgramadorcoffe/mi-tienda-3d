@@ -113,7 +113,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
         style={{ background: "#080510" }}
       >
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
         `}</style>
 
         {/* Fondo */}
@@ -258,6 +258,10 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* h2 solo para lectores de pantalla: el h1 (hero) salta directo a
+              los h3 de cada tarjeta de producto sin nivel intermedio */}
+          <h2 className="sr-only">Catálogo de productos</h2>
 
           {/* Grid de productos */}
           <section
