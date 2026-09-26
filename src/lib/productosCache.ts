@@ -16,7 +16,7 @@ const TTL_MS = 5 * 60 * 1000;
 let cache: { productos: Product[]; expiraEn: number } | null = null;
 let enVuelo: Promise<Product[]> | null = null;
 
-function mapearProducto(id: string, d: Record<string, unknown>): Product {
+export function mapearProducto(id: string, d: Record<string, unknown>): Product {
   return {
     id,
     nombre: (d.nombre as string) ?? "Sin nombre",
