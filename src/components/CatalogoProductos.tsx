@@ -134,6 +134,27 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
           .pildora-categoria-activa {
             animation: brilloPildora 2.6s ease-in-out infinite;
           }
+
+          /* Mismo tratamiento para el toggle de Género, pero con el tono
+             rosa-claro/dorado del propio degradado del botón (es un chip
+             relleno, no un contorno como las categorías) */
+          @keyframes brilloGenero {
+            0%, 100% {
+              box-shadow: 0 0 14px 2px rgba(253,164,175,0.45), 0 0 28px 6px rgba(252,211,77,0.25);
+            }
+            50% {
+              box-shadow: 0 0 20px 4px rgba(253,164,175,0.65), 0 0 40px 10px rgba(252,211,77,0.4);
+            }
+          }
+          .pildora-genero {
+            transition: box-shadow 0.25s ease;
+          }
+          .pildora-genero:hover {
+            box-shadow: 0 0 12px 1px rgba(253,164,175,0.3);
+          }
+          .pildora-genero-activa {
+            animation: brilloGenero 2.6s ease-in-out infinite;
+          }
         `}</style>
 
         {/* Fondo */}
@@ -210,7 +231,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
                 <button
                   key={g.valor}
                   onClick={() => setGeneroActivo(g.valor)}
-                  className="px-5 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-all duration-200"
+                  className={`px-5 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 pildora-genero ${generoActivo === g.valor ? "pildora-genero-activa" : ""}`}
                   style={{
                     background: generoActivo === g.valor ? "linear-gradient(90deg, #fda4af, #fcd34d)" : "transparent",
                     color: generoActivo === g.valor ? "#1a1a1a" : "rgba(255,255,255,0.45)",
@@ -253,7 +274,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
                   <button
                     key={op.valor}
                     onClick={() => setOrdenamiento(op.valor)}
-                    className="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200"
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 pildora-categoria ${ordenamiento === op.valor ? "pildora-categoria-activa" : ""}`}
                     style={{
                       border: ordenamiento === op.valor ? "1px solid rgba(244,114,182,0.5)" : "1px solid rgba(255,255,255,0.08)",
                       background: ordenamiento === op.valor ? "rgba(244,63,94,0.12)" : "transparent",
