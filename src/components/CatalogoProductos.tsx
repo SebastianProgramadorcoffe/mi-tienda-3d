@@ -332,9 +332,10 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
         </div>
 
         {/* Se muestran justo donde terminan los productos (la de confianza
-            antes estaba pegada al pie del Footer, mucho más abajo) */}
-        <BarraBienvenida />
+            antes estaba pegada al pie del Footer, mucho más abajo). La de
+            bienvenida va más abajo, pegada al footer. */}
         <BarraConfianza />
+        <BarraBienvenida />
 
         {/* WhatsApp flotante */}
         <motion.a
