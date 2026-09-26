@@ -114,6 +114,26 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
       >
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
+          /* Brillo de la categoría activa en el filtro — solo box-shadow,
+             no toca tamaño/padding/posición del botón */
+          @keyframes brilloPildora {
+            0%, 100% {
+              box-shadow: 0 0 0 1px rgba(244,114,182,0.5), 0 0 16px 2px rgba(244,63,94,0.45), 0 0 32px 6px rgba(251,191,36,0.16);
+            }
+            50% {
+              box-shadow: 0 0 0 1px rgba(244,114,182,0.75), 0 0 24px 4px rgba(244,63,94,0.65), 0 0 46px 10px rgba(251,191,36,0.28);
+            }
+          }
+          .pildora-categoria {
+            transition: box-shadow 0.25s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+          }
+          .pildora-categoria:hover {
+            box-shadow: 0 0 14px 1px rgba(244,114,182,0.28);
+          }
+          .pildora-categoria-activa {
+            animation: brilloPildora 2.6s ease-in-out infinite;
+          }
         `}</style>
 
         {/* Fondo */}
@@ -207,7 +227,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
                 <button
                   key={cat}
                   onClick={() => setCategoriaActiva(cat)}
-                  className="px-4 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200"
+                  className={`px-4 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 pildora-categoria ${categoriaActiva === cat ? "pildora-categoria-activa" : ""}`}
                   style={{
                     border: categoriaActiva === cat ? "1px solid rgba(244,114,182,0.5)" : "1px solid rgba(255,255,255,0.08)",
                     background: categoriaActiva === cat ? "rgba(244,63,94,0.12)" : "rgba(255,255,255,0.03)",
