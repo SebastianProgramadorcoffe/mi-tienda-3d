@@ -42,6 +42,26 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
+      <style>{`
+        .logo-brillo {
+          text-shadow: 0 0 8px rgba(244,114,182,0.85), 0 0 18px rgba(244,114,182,0.5), 0 0 34px rgba(251,191,36,0.4);
+        }
+        .nav-link-brillo {
+          text-shadow: 0 0 8px rgba(244,114,182,0.7), 0 0 18px rgba(244,114,182,0.35);
+          transition: text-shadow 0.25s ease, color 0.2s ease;
+        }
+        .nav-link-brillo:hover {
+          text-shadow: 0 0 10px rgba(244,114,182,0.95), 0 0 22px rgba(244,114,182,0.6), 0 0 34px rgba(251,191,36,0.45);
+        }
+        .buscador-boton {
+          transition: box-shadow 0.25s ease, background 0.2s ease, color 0.2s ease;
+          box-shadow: 0 0 14px 1px rgba(244,114,182,0.35);
+        }
+        .buscador-boton:hover {
+          box-shadow: 0 0 18px 3px rgba(244,114,182,0.55), 0 0 32px 8px rgba(251,191,36,0.3);
+        }
+      `}</style>
+
       <div className="mx-auto px-4 md:px-6 py-4 flex items-center justify-between" style={{ maxWidth: "1200px" }}>
 
         {/* Logo */}
@@ -53,7 +73,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             <span className="text-black font-bold text-xs">AE</span>
           </div>
           <span
-            className="text-white font-semibold tracking-wide text-sm whitespace-nowrap"
+            className="text-white font-semibold tracking-wide text-sm whitespace-nowrap logo-brillo"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
           >
             Aura Esencia
@@ -66,7 +86,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             <Link
               key={link.href}
               href={link.href}
-              className="text-white/50 hover:text-white text-xs tracking-widest uppercase transition-colors duration-200"
+              className="text-white/50 hover:text-white text-xs tracking-widest uppercase transition-colors duration-200 nav-link-brillo"
             >
               {link.label}
             </Link>
@@ -107,13 +127,14 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
 
           <button
             onClick={() => setBusquedaActiva(!busquedaActiva)}
-            className="w-11 h-11 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            className="w-11 h-11 md:w-auto md:px-5 rounded-full flex items-center justify-center md:justify-start gap-2 text-white/50 hover:text-white transition-colors buscador-boton"
             style={{ background: "rgba(255,255,255,0.06)" }}
             aria-label="Buscar"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
+            <span className="hidden md:inline text-[11px] uppercase tracking-widest">Buscar</span>
           </button>
 
           {/* Favoritos — oculto en mobile (entra al menú hamburguesa) para
