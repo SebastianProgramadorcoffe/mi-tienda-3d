@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 const ENLACES = [
   { href: "/admin", label: "Panel", soloAdmin: false },
   { href: "/admin/analiticas", label: "Analíticas", soloAdmin: true },
+  { href: "/admin/predicciones", label: "Predicciones", soloAdmin: true },
   { href: "/admin/productos", label: "Productos", soloAdmin: false },
   { href: "/admin/pedidos", label: "Pedidos", soloAdmin: false },
   { href: "/admin/usuarios", label: "Usuarios", soloAdmin: true },

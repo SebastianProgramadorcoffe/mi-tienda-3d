@@ -80,12 +80,13 @@ service cloud.firestore {
 
     // ─── predicciones/{productoId} ───────────────────────────────────────────
     // Salida del modelo de Random Forest (GitHub Actions, ml/entrenar_predecir.py):
-    // demanda estimada y promociones sugeridas por producto. Solo staff la lee
-    // desde el panel; nadie escribe desde el cliente — solo el Admin SDK del
-    // workflow, que se autentica con una service account y por eso ignora
-    // estas reglas.
+    // demanda estimada y promociones sugeridas por producto. Es información
+    // estratégica (qué promocionar), igual que /admin/analiticas: solo admin
+    // la lee, no empleados. Nadie escribe desde el cliente — solo el Admin
+    // SDK del workflow, que se autentica con una service account y por eso
+    // ignora estas reglas.
     match /predicciones/{productoId} {
-      allow get, list: if esStaff();
+      allow get, list: if esAdmin();
       allow create, update, delete: if false;
     }
 
