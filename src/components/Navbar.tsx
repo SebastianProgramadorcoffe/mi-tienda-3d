@@ -66,6 +66,13 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/afiliacion"
+            className="px-4 py-1.5 rounded-full text-xs tracking-widest uppercase font-semibold transition-colors duration-200"
+            style={{ border: "1px solid rgba(244,114,182,0.5)", color: "rgba(253,164,175,1)" }}
+          >
+            Afíliate
+          </Link>
         </div>
 
         {/* Acciones */}

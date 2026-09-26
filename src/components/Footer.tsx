@@ -13,6 +13,7 @@ const ENLACES_LEGALES = [
 
 const ENLACES_TIENDA = [
   { href: "/catalogo", label: "Catálogo" },
+  { href: "/afiliacion", label: "Afíliate" },
   { href: "/nosotros", label: "Nosotros" },
   { href: "/contacto", label: "Contacto" },
 ];

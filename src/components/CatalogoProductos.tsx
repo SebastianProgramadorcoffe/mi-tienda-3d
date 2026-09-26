@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { obtenerProductos } from "../lib/productosCache";
+import { whatsappHref } from "../lib/whatsapp";
 import { ProductRevealCard, type Product, type Genero } from "./ui/product-reveal-card";
 import { Navbar } from "./Navbar";
 import { CarritoDrawer } from "./CarritoDrawer";
@@ -135,7 +136,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
                 style={{ letterSpacing: "0.4em" }}
                 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               >
-                Colección Exclusiva · 2025
+                Colección Exclusiva · 2026
               </motion.p>
 
               <motion.h1
@@ -307,7 +308,7 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
 
         {/* WhatsApp flotante */}
         <motion.a
-          href="https://wa.me/573001234567?text=Hola,%20me%20interesa%20un%20producto%20de%20Aura%20Esencia"
+          href={whatsappHref("Hola, me interesa un producto de Aura Esencia")}
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl"

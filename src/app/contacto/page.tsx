@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { Navbar } from "../../components/Navbar";
 import { CarritoDrawer } from "../../components/CarritoDrawer";
 import { Footer } from "../../components/Footer";
+import { whatsappHref } from "../../lib/whatsapp";
 
 const CANALES = [
   {
     nombre: "WhatsApp",
     valor: "+57 300 123 4567",
-    href: "https://wa.me/573001234567?text=Hola,%20tengo%20una%20pregunta%20sobre%20Aura%20Esencia",
+    href: whatsappHref("Hola, tengo una pregunta sobre Aura Esencia"),
     color: "#25D366",
   },
   {
