@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { BarraBienvenida } from "./BarraBienvenida";
 
 const ENLACES_LEGALES = [
   { href: "/politica-de-privacidad", label: "Política de Tratamiento de Datos" },
@@ -127,6 +128,8 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      <BarraBienvenida />
 
       <div className="px-6 py-5 text-center">
         <p className="text-white/25 text-[11px]">© {new Date().getFullYear()} Aura & Esencia. Todos los derechos reservados.</p>
