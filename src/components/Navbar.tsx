@@ -40,7 +40,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <div className="mx-auto px-6 py-4 flex items-center justify-between" style={{ maxWidth: "1200px" }}>
+      <div className="mx-auto px-4 md:px-6 py-4 flex items-center justify-between" style={{ maxWidth: "1200px" }}>
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group">
@@ -51,7 +51,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             <span className="text-black font-bold text-xs">AE</span>
           </div>
           <span
-            className="text-white font-semibold tracking-wide text-sm"
+            className="text-white font-semibold tracking-wide text-sm whitespace-nowrap"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}
           >
             Aura Esencia
@@ -79,7 +79,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
         </div>
 
         {/* Acciones */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
 
           {/* Buscador */}
           <AnimatePresence>
@@ -105,7 +105,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
 
           <button
             onClick={() => setBusquedaActiva(!busquedaActiva)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            className="w-11 h-11 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
             aria-label="Buscar"
           >
@@ -114,10 +114,11 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             </svg>
           </button>
 
-          {/* Favoritos */}
+          {/* Favoritos — oculto en mobile (entra al menú hamburguesa) para
+              que los 3 iconos restantes + logo entren en 375px sin overflow */}
           <Link
             href="/favoritos"
-            className="relative w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            className="relative hidden md:flex w-11 h-11 rounded-full items-center justify-center text-white/50 hover:text-white transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
             aria-label="Favoritos"
           >
@@ -140,7 +141,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
           {/* Carrito */}
           <button
             onClick={toggleCarrito}
-            className="relative w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+            className="relative w-11 h-11 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
             aria-label="Carrito"
           >
@@ -160,11 +161,12 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
             )}
           </button>
 
-          {/* Usuario */}
-          <div className="relative">
+          {/* Usuario — oculto en mobile (entra al menú hamburguesa), mismo
+              motivo que Favoritos arriba */}
+          <div className="relative hidden md:block">
             <button
               onClick={() => setMenuUsuario(!menuUsuario)}
-              className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden transition-all"
+              className="w-11 h-11 rounded-full flex items-center justify-center overflow-hidden transition-all"
               style={{
                 background: usuario
                   ? "linear-gradient(135deg, #f43f5e, #fbbf24)"
@@ -286,6 +288,50 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
               >
                 Afíliate
               </Link>
+
+              <div className="mt-3 pt-3 flex flex-col gap-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <Link
+                  href="/favoritos"
+                  onClick={() => setMenuMovilAbierto(false)}
+                  className="text-white/50 hover:text-white text-xs uppercase tracking-widest py-2 transition-colors"
+                >
+                  Favoritos{totalFavoritos > 0 ? ` (${totalFavoritos})` : ""}
+                </Link>
+                {usuario ? (
+                  <>
+                    <Link
+                      href="/cuenta"
+                      onClick={() => setMenuMovilAbierto(false)}
+                      className="text-white/50 hover:text-white text-xs uppercase tracking-widest py-2 transition-colors"
+                    >
+                      Mi cuenta
+                    </Link>
+                    {(rol === "admin" || rol === "empleado") && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setMenuMovilAbierto(false)}
+                        className="text-amber-300/90 hover:text-amber-200 text-xs uppercase tracking-widest py-2 transition-colors"
+                      >
+                        Panel {rol === "admin" ? "admin" : "empleado"}
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => { cerrarSesion(); setMenuMovilAbierto(false); }}
+                      className="text-left text-rose-400/80 hover:text-rose-300 text-xs uppercase tracking-widest py-2 transition-colors"
+                    >
+                      Cerrar sesión
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuMovilAbierto(false)}
+                    className="text-white/50 hover:text-white text-xs uppercase tracking-widest py-2 transition-colors"
+                  >
+                    Iniciar sesión
+                  </Link>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
