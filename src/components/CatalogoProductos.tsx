@@ -9,6 +9,7 @@ import { Navbar } from "./Navbar";
 import { CarritoDrawer } from "./CarritoDrawer";
 import { Footer } from "./Footer";
 import { BarraConfianza } from "./BarraConfianza";
+import { BarraBienvenida } from "./BarraBienvenida";
 
 type Ordenamiento = "nombre" | "precio_asc" | "precio_desc";
 
@@ -330,8 +331,9 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
 
         </div>
 
-        {/* Se muestra justo donde terminan los productos (antes estaba
-            pegada al pie del Footer, mucho más abajo) */}
+        {/* Se muestran justo donde terminan los productos (la de confianza
+            antes estaba pegada al pie del Footer, mucho más abajo) */}
+        <BarraBienvenida />
         <BarraConfianza />
 
         {/* WhatsApp flotante */}
