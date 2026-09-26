@@ -8,6 +8,7 @@ import { ProductRevealCard, type Product, type Genero } from "./ui/product-revea
 import { Navbar } from "./Navbar";
 import { CarritoDrawer } from "./CarritoDrawer";
 import { Footer } from "./Footer";
+import { BarraConfianza } from "./BarraConfianza";
 
 type Ordenamiento = "nombre" | "precio_asc" | "precio_desc";
 
@@ -328,6 +329,10 @@ export function CatalogoProductos({ mostrarHero = true }: CatalogoProductosProps
           )}
 
         </div>
+
+        {/* Se muestra justo donde terminan los productos (antes estaba
+            pegada al pie del Footer, mucho más abajo) */}
+        <BarraConfianza />
 
         {/* WhatsApp flotante */}
         <motion.a
