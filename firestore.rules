@@ -78,17 +78,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── predicciones/{productoId} ───────────────────────────────────────────
-    // Salida del modelo de Random Forest (GitHub Actions, ml/entrenar_predecir.py):
-    // demanda estimada y promociones sugeridas por producto. Solo staff la lee
-    // desde el panel; nadie escribe desde el cliente — solo el Admin SDK del
-    // workflow, que se autentica con una service account y por eso ignora
-    // estas reglas.
-    match /predicciones/{productoId} {
-      allow get, list: if esStaff();
-      allow create, update, delete: if false;
-    }
-
     // ─── suscriptores/{email} ───────────────────────────────────────────────
     // Newsletter: cualquier visitante (sin sesión) puede suscribirse, pero
     // solo el propio email como dueño de su documento (id == email) y con

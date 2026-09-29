@@ -63,7 +63,6 @@ export default function PaginaCheckout() {
           productoId: item.producto.id,
           nombre: item.producto.nombre,
           precio: item.producto.precio,
-          precioOriginal: item.producto.precioOriginal ?? null,
           cantidad: item.cantidad,
           imagen: item.producto.imagen,
           color: item.variante?.color ?? null,
