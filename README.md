@@ -88,10 +88,26 @@ Desde ahí, ese admin puede promover a otros usuarios desde `/admin/usuarios`.
 - Solo `admin`: gestión de roles de usuarios (`/admin/usuarios`) y **analíticas** (`/admin/analiticas`) — ingresos, ticket promedio, ventas de los últimos 14 días, productos más vendidos y alertas de stock bajo/agotado.
 - Footer con newsletter funcional y páginas legales (`/politica-de-privacidad`, `/terminos-y-condiciones`) con checkbox de consentimiento en registro y checkout (Ley 1581 de 2012 — Habeas Data, Colombia).
 
-## Pendiente / decisiones que le corresponden al dueño de la tienda
+## Qué falta para operar con ventas reales
 
-- **Revisión legal**: las páginas de política de privacidad y términos son una plantilla de buena práctica, no asesoría jurídica — hace falta completar razón social/NIT y que un abogado las revise antes de publicar en serio.
-- **Llave de producción de Wompi** (hoy en modo prueba/sandbox).
-- **`/registro`**: el menú de usuario (sin sesión) enlaza a `/registro`, que no existe — hoy `/login` ya incluye el flujo de registro; falta decidir si se crea esa ruta aparte o se deja así.
-- Favoritos son solo locales al navegador (no sincronizan entre dispositivos); si se quiere eso, hay que moverlos a Firestore.
-- Sin Cloud Functions: si más adelante se necesita algo que sí requiera servidor (por ejemplo, confirmar pagos por webhook en vez de al volver del checkout), eso obliga a evaluar el plan Blaze.
+Estado revisado el 2026-09-29. Hoy la tienda está publicada pero **no puede vender en serio**.
+
+**Bloqueantes**
+
+- **Firma de integridad de Wompi.** La documentación oficial de Wompi marca `signature:integrity` como parámetro obligatorio del Web Checkout: SHA256 de `referencia + montoEnCentavos + moneda + secreto de integridad`. La tienda no lo envía, y el secreto no puede estar en el navegador. Hace falta un servicio pequeño del lado del servidor que calcule la firma. (Esto está verificado en la documentación, no con una compra real.)
+- **Llave de producción de Wompi.** Hoy `src/lib/wompi.ts` usa una llave de pruebas (`pub_test_...`).
+- **WhatsApp de ejemplo.** `src/lib/whatsapp.ts` tiene `573001234567`, así que los botones de contacto llevan a un número que no es de la tienda.
+- **Páginas legales incompletas.** Falta la razón social/NIT, y el aviso "plantilla pendiente de revisión legal" se ve en el sitio público. Además, el correo `contacto@auraesencia.com` es de un dominio cuya titularidad no está confirmada. Estas páginas son una plantilla, no asesoría jurídica: debe revisarlas un abogado.
+
+**Operación manual (funciona, pero depende del staff)**
+
+- **Pagos.** Cada pedido pagado queda `pendiente` hasta que el staff pulse "Verificar pago en Wompi" en `/admin/pedidos`.
+- **Stock.** No se descuenta al vender; ningún punto del flujo de compra lo toca. Hay que ajustarlo a mano después de cada venta.
+- **Envío.** En el checkout aparece "A calcular", pero no se cobra en ningún momento. Hay que definir cómo se cobra.
+- **Avisos.** No hay notificaciones: la clienta no recibe correo y la tienda no recibe aviso de pedidos nuevos.
+
+**Recomendado**
+
+- Sin respaldos programados de Firestore ni monitoreo de errores.
+- Los favoritos son solo locales al navegador; no se sincronizan entre dispositivos.
+- Sin Cloud Functions. Cualquier cosa que requiera servidor (la firma de Wompi, un webhook de pagos, correos) necesita el plan Blaze de Firebase o un servicio externo.

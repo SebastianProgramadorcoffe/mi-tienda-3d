@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 
 export default function PaginaLogin() {
-  const [modo, setModo] = useState<"login" | "registro" | "recovery">("login");
+  return (
+    <Suspense fallback={null}>
+      <ContenidoLogin />
+    </Suspense>
+  );
+}
+
+function ContenidoLogin() {
+  const params = useSearchParams();
+  const [modo, setModo] = useState<"login" | "registro" | "recovery">(
+    params.get("modo") === "registro" ? "registro" : "login",
+  );
   const [nombre,   setNombre]   = useState("");
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");

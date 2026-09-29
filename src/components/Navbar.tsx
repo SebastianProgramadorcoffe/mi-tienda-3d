@@ -254,7 +254,7 @@ export function Navbar({ onBuscar, busqueda = "" }: NavbarProps) {
                         className="flex items-center gap-3 px-4 py-3 text-white/60 hover:text-white hover:bg-white/5 text-xs transition-colors">
                         Iniciar sesión
                       </Link>
-                      <Link href="/registro" onClick={() => setMenuUsuario(false)}
+                      <Link href="/login?modo=registro" onClick={() => setMenuUsuario(false)}
                         className="flex items-center gap-3 px-4 py-3 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 text-xs font-medium transition-colors">
                         Crear cuenta
                       </Link>

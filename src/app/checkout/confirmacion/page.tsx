@@ -16,7 +16,7 @@ type EstadoVista = EstadoPedido | "aprobadoPorConfirmar";
 const MENSAJE: Record<EstadoVista, { titulo: string; detalle: string; color: string }> = {
   pagado:    { titulo: "¡Pago confirmado!", detalle: "Tu pedido fue recibido y ya lo estamos preparando.", color: "rgba(52,211,153,1)" },
   aprobadoPorConfirmar: { titulo: "¡Pago recibido!", detalle: "Wompi aprobó tu pago. Lo confirmamos en breve y empezamos a preparar tu pedido.", color: "rgba(52,211,153,1)" },
-  pendiente: { titulo: "Pago en proceso", detalle: "Wompi todavía está confirmando tu pago. Te avisaremos por correo.", color: "rgba(251,191,36,1)" },
+  pendiente: { titulo: "Pago en proceso", detalle: "Wompi todavía está confirmando tu pago. Puedes ver el estado de tu pedido en Mi cuenta.", color: "rgba(251,191,36,1)" },
   fallido:   { titulo: "El pago no se pudo procesar", detalle: "Intenta de nuevo o usa otro método de pago.", color: "rgba(248,113,113,1)" },
   cancelado: { titulo: "Pago cancelado", detalle: "No se realizó ningún cobro.", color: "rgba(255,255,255,0.5)" },
 };
