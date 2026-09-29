@@ -9,11 +9,9 @@ pedidos reales.
 Dos modos:
 
   --patron (recomendado para probar que el modelo SÍ aprende algo):
-    simula un patrón de negocio realista sobre 365 días — más ventas en
-    quincena (14-16 y 29-31, como paga en Colombia), más los fines de
-    semana, bloques reales de promoción cada ~18 días que sí aumentan la
-    demanda, temporada alta real de perfumería/cosméticos (San Valentín,
-    Día de la madre, Amor y Amistad, Navidad), y una tendencia
+    simula un patrón de negocio realista — más ventas en quincena (14-16 y
+    29-31, como paga en Colombia), más los fines de semana, bloques reales
+    de promoción cada ~18 días que sí aumentan la demanda, y una tendencia
     (subiendo/bajando) asignada por producto. Si el R² del entrenamiento
     mejora con este modo, confirma que el pipeline aprende correctamente
     cuando existe una señal real que aprender.
@@ -39,14 +37,9 @@ from datetime import datetime, timedelta, timezone
 from firebase_client import obtener_firestore
 
 DIAS_HACIA_ATRAS_ALEATORIO = 75
-DIAS_HACIA_ATRAS_PATRON = 365
+DIAS_HACIA_ATRAS_PATRON = 180
 CICLO_PROMOCION_DIAS = 18
 DURACION_PROMOCION_DIAS = 4
-
-# Meses de temporada alta real para una tienda de perfumería/cosméticos en
-# Colombia: San Valentín (feb), Día de la madre (may), Amor y Amistad (sep),
-# Navidad (dic). Multiplican la probabilidad de venta de ese mes.
-MESES_TEMPORADA_ALTA = {2: 1.3, 5: 1.25, 9: 1.35, 12: 1.6}
 
 
 def obtener_productos_reales(db):
@@ -151,8 +144,7 @@ def generar_eventos_patron(productos, dias_historial):
                 probabilidad += 0.08
             if promo_activa:
                 probabilidad += 0.25
-            factor_temporada = MESES_TEMPORADA_ALTA.get(fecha.month, 1.0)
-            probabilidad = max(0.02, min(0.95, probabilidad * factor_tendencia * factor_temporada))
+            probabilidad = max(0.02, min(0.95, probabilidad * factor_tendencia))
 
             if random.random() >= probabilidad:
                 continue
@@ -168,8 +160,6 @@ def generar_eventos_patron(productos, dias_historial):
             if es_quincena(fecha):
                 cantidad += 1
             if promo_activa:
-                cantidad += 1
-            if fecha.month in MESES_TEMPORADA_ALTA:
                 cantidad += 1
             cantidad += random.randint(0, 1)
 
@@ -229,8 +219,7 @@ def sembrar_con_patron(dias_historial: int):
     print(f"Se crearon {len(eventos)} eventos de venta de PRUEBA con patrón, sobre {dias_historial} días.")
     print(f"Tendencias asignadas por producto: {resumen_tendencias}")
     print("Patrón inyectado: +demanda en quincena (14-16 y 29-31), +demanda fin de semana, "
-          f"promoción real activa {DURACION_PROMOCION_DIAS} de cada {CICLO_PROMOCION_DIAS} días, "
-          f"+demanda en temporada alta ({sorted(MESES_TEMPORADA_ALTA)}).")
+          f"promoción real activa {DURACION_PROMOCION_DIAS} de cada {CICLO_PROMOCION_DIAS} días.")
     print("Corre 'python entrenar_predecir.py' y compara el R² contra el modo aleatorio.")
 
 
