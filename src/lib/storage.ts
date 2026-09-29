@@ -1,14 +1,38 @@
 // ─── Subida de archivos a Cloudinary ──────────────────────────────────────────
-// Firebase Storage exige plan Blaze (con tarjeta) incluso dentro del tier
-// gratis, así que las imágenes y modelos 3D se suben directo desde el
-// navegador a Cloudinary usando un "unsigned upload preset" — el patrón
-// oficial de Cloudinary para apps 100% cliente (sin backend propio). El
-// cloud name y el preset no son secretos: están hechos para vivir en el
-// bundle del cliente.
+// Firebase Storage exige plan Blaze (con tarjeta), así que las imágenes y
+// modelos 3D van a Cloudinary.
+//
+// Con NEXT_PUBLIC_FIRMA_URL configurado, cada subida va firmada por
+// servicio-firmas/, que solo firma para staff: nadie más puede subir.
+// Sin él se usa el "unsigned upload preset" — solo como respaldo temporal:
+// ese preset es público (va en el bundle) y deja subir archivos a
+// cualquiera. Borrarlo en Cloudinary en cuanto el servicio esté publicado.
 import type { Modelo3D } from "../components/ui/product-reveal-card";
+import { auth } from "./firebase";
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const URL_FIRMA = process.env.NEXT_PUBLIC_FIRMA_URL;
+
+interface FirmaSubida {
+  firma: string;
+  timestamp: number;
+  carpeta: string;
+  apiKey: string;
+  cloudName: string;
+}
+
+async function pedirFirmaSubida(): Promise<FirmaSubida> {
+  const usuario = auth.currentUser;
+  if (!usuario) throw new ErrorSubida("Tu sesión expiró. Vuelve a iniciar sesión.");
+  const res = await fetch(`${URL_FIRMA!.replace(/\/$/, "")}/firma-cloudinary`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await usuario.getIdToken()}` },
+  });
+  if (res.status === 403) throw new ErrorSubida("Tu cuenta no tiene permiso para subir archivos.");
+  if (!res.ok) throw new ErrorSubida("No se pudo autorizar la subida. Intenta de nuevo.");
+  return res.json();
+}
 
 const MAX_IMAGEN_BYTES = 5 * 1024 * 1024;
 const MAX_MODELO_BYTES = 30 * 1024 * 1024;
@@ -20,16 +44,26 @@ function extensionDe(nombre: string) {
 }
 
 async function subirACloudinary(archivo: File, tipoRecurso: "image" | "raw"): Promise<string> {
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new ErrorSubida("Falta configurar Cloudinary (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME / _UPLOAD_PRESET).");
-  }
-
   const formData = new FormData();
   formData.append("file", archivo);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "aura-esencia");
+  let cloudName: string;
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${tipoRecurso}/upload`, {
+  if (URL_FIRMA) {
+    const f = await pedirFirmaSubida();
+    cloudName = f.cloudName;
+    formData.append("api_key", f.apiKey);
+    formData.append("timestamp", String(f.timestamp));
+    formData.append("folder", f.carpeta);
+    formData.append("signature", f.firma);
+  } else if (CLOUD_NAME && UPLOAD_PRESET) {
+    cloudName = CLOUD_NAME;
+    formData.append("upload_preset", UPLOAD_PRESET);
+    formData.append("folder", "aura-esencia");
+  } else {
+    throw new ErrorSubida("Falta configurar Cloudinary (NEXT_PUBLIC_FIRMA_URL, ver servicio-firmas/README.md).");
+  }
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${tipoRecurso}/upload`, {
     method: "POST",
     body: formData,
   });

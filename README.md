@@ -32,11 +32,11 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...
 
-NEXT_PUBLIC_WOMPI_FIRMA_URL=...   # URL del servicio de firma (ver firma-wompi/README.md)
+NEXT_PUBLIC_FIRMA_URL=...   # URL del servicio de firmas (ver servicio-firmas/README.md)
 ```
 
 - Credenciales de Firebase: Firebase Console → Configuración del proyecto → "Tus apps".
-- Cloudinary: cloudinary.com → Dashboard (cloud name) → Settings → Upload → Upload presets (crea uno en modo **Unsigned**). Ninguno de los dos valores es secreto — están pensados para vivir en el cliente.
+- Cloudinary: las subidas del admin van firmadas por `servicio-firmas/` (solo staff). `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `_UPLOAD_PRESET` solo se usan como respaldo mientras el servicio no esté publicado. Ese preset sin firma deja subir archivos a cualquiera: bórralo en Cloudinary en cuanto el servicio funcione.
 - Llave pública de Wompi: hardcodeada en `src/lib/wompi.ts` (hoy una llave de prueba `pub_test_...`; cámbiala por la de producción cuando tengas cuenta real de Wompi).
 
 ## Desarrollo
@@ -96,7 +96,7 @@ Estado revisado el 2026-09-29. Hoy la tienda está publicada pero **no puede ven
 
 **Bloqueantes**
 
-- **Publicar el servicio de firma de Wompi.** Wompi exige una firma de integridad (`signature:integrity`) en cada pago. La tienda ya la pide a un Cloudflare Worker gratuito (`firma-wompi/`), pero ese servicio hay que publicarlo una vez y configurar `NEXT_PUBLIC_WOMPI_FIRMA_URL`; los pasos están en [`firma-wompi/README.md`](firma-wompi/README.md). Mientras no esté publicado, el checkout le dice a la clienta que los pagos en línea no están habilitados.
+- **Publicar el servicio de firmas.** Wompi exige una firma de integridad (`signature:integrity`) en cada pago, y las subidas a Cloudinary deben ir firmadas para que solo el staff pueda subir archivos. La tienda ya usa un Cloudflare Worker gratuito para ambas cosas (`servicio-firmas/`), pero hay que publicarlo una vez, configurar `NEXT_PUBLIC_FIRMA_URL` y borrar el preset sin firma de Cloudinary. Los pasos están en [`servicio-firmas/README.md`](servicio-firmas/README.md). Mientras no esté publicado, el checkout le dice a la clienta que los pagos en línea no están habilitados.
 - **Llave de producción de Wompi.** Hoy `src/lib/wompi.ts` usa una llave de pruebas (`pub_test_...`).
 - **WhatsApp de ejemplo.** `src/lib/whatsapp.ts` tiene `573001234567`, así que los botones de contacto llevan a un número que no es de la tienda.
 - **Páginas legales incompletas.** Falta la razón social/NIT, y el aviso "plantilla pendiente de revisión legal" se ve en el sitio público. Además, el correo `contacto@auraesencia.com` es de un dominio cuya titularidad no está confirmada. Estas páginas son una plantilla, no asesoría jurídica: debe revisarlas un abogado.

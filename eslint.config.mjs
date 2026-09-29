@@ -12,7 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    "firma-wompi/.wrangler/**",
+    "servicio-firmas/.wrangler/**",
   ]),
 ]);
 

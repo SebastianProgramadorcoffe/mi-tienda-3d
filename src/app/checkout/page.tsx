@@ -119,7 +119,7 @@ export default function PaginaCheckout() {
       });
       pedidoCreado = true;
 
-      // El monto y la firma salen del pedido guardado (ver firma-wompi/),
+      // El monto y la firma salen del pedido guardado (ver servicio-firmas/),
       // no del carrito: Wompi rechaza el pago si alguien altera el monto.
       const { firma, montoCentavos } = await obtenerFirmaIntegridad(referencia, await usuario.getIdToken());
       if (montoCentavos !== totalEnCentavos(totalPrecio)) throw new Error("El monto firmado no coincide con el carrito");

@@ -62,7 +62,16 @@ function DetalleProducto() {
       <Navbar />
       <CarritoDrawer />
       {producto?.modelo3d && (
-        <Script src="https://unpkg.com/@google/model-viewer@3/dist/model-viewer.min.js" strategy="lazyOnload" type="module" />
+        // Versión exacta + hash de integridad: si el archivo del CDN cambia
+        // (paquete comprometido), el navegador se niega a ejecutarlo. Para
+        // actualizar, cambia la versión y recalcula el hash.
+        <Script
+          src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"
+          integrity="sha384-Ftcjj/GNLxPvzNDftO/oryXB9aGxsGZY9JGqsXG0uUKgQDl9RfDgsx9NJ/4IVNPe"
+          crossOrigin="anonymous"
+          strategy="lazyOnload"
+          type="module"
+        />
       )}
 
       <main className="min-h-screen relative" style={{ background: "#080510", paddingTop: "100px" }}>

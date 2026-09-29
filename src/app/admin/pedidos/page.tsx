@@ -48,6 +48,12 @@ export default function ListaPedidosAdmin() {
   }, []);
 
   async function cambiarEstado(id: string, estado: EstadoPedido) {
+    if (
+      estado === "pagado" &&
+      !confirm("¿Marcar como pagado SIN verificar en Wompi? Hazlo solo si confirmaste el pago por otro medio (p. ej. en el panel de Wompi).")
+    ) {
+      return;
+    }
     try {
       await updateDoc(doc(db, "pedidos", id), { estado, updatedAt: serverTimestamp() });
       setPedidos((prev) => prev.map((p) => (p.id === id ? { ...p, estado } : p)));
@@ -66,7 +72,9 @@ export default function ListaPedidosAdmin() {
     try {
       const transaccion = await obtenerEstadoTransaccion(transaccionId);
       let mensaje: string;
-      if (!transaccionCorrespondeAPedido(transaccion, p)) {
+      // Se compara contra el id del documento (la referencia que Wompi
+      // cobró), nunca contra campos que escribió el cliente.
+      if (!transaccionCorrespondeAPedido(transaccion, { referencia: p.id, total: p.total })) {
         mensaje = `✗ La transacción ${transaccionId} no corresponde a este pedido (referencia o monto distintos). No se marcó como pagado.`;
       } else if (transaccion.estado !== "pagado") {
         mensaje = `Wompi reporta la transacción como "${transaccion.estadoWompi}". No se marcó como pagado.`;

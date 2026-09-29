@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
-import { calcularFirmaIntegridad, manejarSolicitud, type Env } from "./index";
+import { calcularFirmaCloudinary, calcularFirmaIntegridad, manejarSolicitud, uidDelToken, type Env } from "./index";
 
 const ORIGEN = "https://tienda-productos-aura-esencia.web.app";
 const REF = "AURA-1790708687000-AB12C";
@@ -134,5 +134,83 @@ describe("manejarSolicitud", () => {
   it("solo atiende POST /firma", async () => {
     const res = await manejarSolicitud(solicitud({ ruta: "/otra" }), env, vi.fn());
     expect(res.status).toBe(404);
+  });
+});
+
+describe("firma de Cloudinary", () => {
+  const envCloudinary: Env = {
+    ...env,
+    CLOUDINARY_CLOUD_NAME: "nube-prueba",
+    CLOUDINARY_API_KEY: "123456",
+    CLOUDINARY_API_SECRET: "secreto-cloudinary",
+  };
+  // Token con payload {"user_id":"empleado1"} (la firma del token la valida Firestore, no el servicio).
+  const tokenDe = (uid: string) => `x.${btoa(JSON.stringify({ user_id: uid })).replace(/=+$/, "")}.y`;
+  const perfil = (rol: string) => ({ fields: { rol: { stringValue: rol } } });
+
+  it("reproduce el ejemplo oficial de la documentación de Cloudinary", async () => {
+    const firma = await calcularFirmaCloudinary(
+      { timestamp: 1315060510, public_id: "sample_image", eager: "w_400,h_300,c_pad|w_260,h_200,c_crop" },
+      "abcd",
+    );
+    expect(firma).toBe("bfd09f95f331f558cbd1320e67aa8d488770583e");
+  });
+
+  it("firma la subida para el staff, leyendo su perfil con su propio token", async () => {
+    const fetchFn = firestoreResponde(200, perfil("empleado"));
+    const res = await manejarSolicitud(
+      solicitud({ ruta: "/firma-cloudinary", token: tokenDe("empleado1") }),
+      envCloudinary,
+      fetchFn,
+    );
+    const cuerpo = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(cuerpo.apiKey).toBe("123456");
+    expect(cuerpo.carpeta).toBe("aura-esencia");
+    expect(cuerpo.firma).toBe(
+      await calcularFirmaCloudinary({ folder: "aura-esencia", timestamp: cuerpo.timestamp }, "secreto-cloudinary"),
+    );
+    expect(JSON.stringify(cuerpo)).not.toContain("secreto-cloudinary");
+    const [url, opciones] = fetchFn.mock.calls[0];
+    expect(url).toMatch(/\/documents\/usuarios\/empleado1$/);
+    expect(opciones.headers.Authorization).toBe(`Bearer ${tokenDe("empleado1")}`);
+  });
+
+  it("rechaza a una clienta", async () => {
+    const res = await manejarSolicitud(
+      solicitud({ ruta: "/firma-cloudinary", token: tokenDe("cliente1") }),
+      envCloudinary,
+      firestoreResponde(200, perfil("cliente")),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("rechaza si Firestore niega leer el perfil (token falso o uid ajeno)", async () => {
+    const res = await manejarSolicitud(
+      solicitud({ ruta: "/firma-cloudinary", token: tokenDe("admin1") }),
+      envCloudinary,
+      firestoreResponde(403),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("rechaza tokens ilegibles o con uid inválido sin consultar Firestore", async () => {
+    const fetchFn = vi.fn();
+    for (const token of ["basura", tokenDe("../pedidos/x")]) {
+      const res = await manejarSolicitud(solicitud({ ruta: "/firma-cloudinary", token }), envCloudinary, fetchFn);
+      expect(res.status).toBe(401);
+    }
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("responde 503 si Cloudinary no está configurado en el servicio", async () => {
+    const res = await manejarSolicitud(solicitud({ ruta: "/firma-cloudinary" }), env, vi.fn());
+    expect(res.status).toBe(503);
+  });
+
+  it("uidDelToken lee user_id del payload", () => {
+    expect(uidDelToken(tokenDe("abc123"))).toBe("abc123");
+    expect(uidDelToken("sin-puntos")).toBeNull();
   });
 });

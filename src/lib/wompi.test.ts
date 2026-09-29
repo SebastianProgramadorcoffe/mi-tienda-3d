@@ -4,7 +4,7 @@ import { obtenerEstadoTransaccion } from "./wompi";
 // URL_FIRMA se lee al cargar el módulo, así que cada prueba lo importa de nuevo.
 async function importarConUrlFirma(url: string | undefined) {
   vi.resetModules();
-  vi.stubEnv("NEXT_PUBLIC_WOMPI_FIRMA_URL", url ?? "");
+  vi.stubEnv("NEXT_PUBLIC_FIRMA_URL", url ?? "");
   return import("./wompi");
 }
 

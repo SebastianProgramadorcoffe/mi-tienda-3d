@@ -35,18 +35,27 @@ function linea(productoId: keyof typeof PRODUCTOS | string, cantidad = 1, precio
 
 function pedido(userId: string, items: ReturnType<typeof linea>[], extra: Record<string, unknown> = {}) {
   return {
-    referencia: "AURA-TEST",
     userId,
     itemsSnapshot: items,
     total: items.reduce((acc, i) => acc + i.precio * i.cantidad, 0),
     envio: { nombre: "Ana", email: "ana@test.co", telefono: "300", direccion: "Calle 1", ciudad: "Cali" },
     aceptoTerminos: true,
     estado: "pendiente",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     ...extra,
   };
 }
 
-const como = (uid: string) => env.authenticatedContext(uid).firestore();
+// Cada cuenta de prueba tiene el mismo email en su token y en su perfil.
+const EMAILS: Record<string, string> = { admin: "admin@t.co", empleado: "emp@t.co", cliente: "cli@t.co", otro: "otro@t.co" };
+const como = (uid: string) =>
+  env.authenticatedContext(uid, { email: EMAILS[uid] ?? `${uid}@t.co` }).firestore();
+
+// El campo "referencia" es siempre el id del documento, igual que en el checkout.
+function crear(db: ReturnType<typeof como>, id: string, data: Record<string, unknown>) {
+  return setDoc(doc(db, "pedidos", id), { referencia: id, ...data });
+}
 const anonimo = () => env.unauthenticatedContext().firestore();
 
 beforeAll(async () => {
@@ -76,65 +85,92 @@ beforeEach(async () => {
 
 describe("pedidos: creación e integridad de precios", () => {
   it("permite un pedido con precios vigentes y total correcto", async () => {
-    await assertSucceeds(setDoc(doc(como("cliente"), "pedidos/N1"), pedido("cliente", [linea("labial", 2), linea("perfume")])));
+    await assertSucceeds(crear(como("cliente"), "N1", pedido("cliente", [linea("labial", 2), linea("perfume")])));
   });
 
   it("permite un producto antiguo sin campo 'activo'", async () => {
-    await assertSucceeds(setDoc(doc(como("cliente"), "pedidos/N2"), pedido("cliente", [linea("perfume")])));
+    await assertSucceeds(crear(como("cliente"), "N2", pedido("cliente", [linea("perfume")])));
   });
 
   it("permite exactamente 8 líneas", async () => {
     const items = Array.from({ length: 8 }, () => linea("labial"));
-    await assertSucceeds(setDoc(doc(como("cliente"), "pedidos/N3"), pedido("cliente", items)));
+    await assertSucceeds(crear(como("cliente"), "N3", pedido("cliente", items)));
   });
 
   it("rechaza un precio de línea alterado (aunque el total cuadre con él)", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X1"), pedido("cliente", [linea("labial", 1, 100)])));
+    await assertFails(crear(como("cliente"), "X1", pedido("cliente", [linea("labial", 1, 100)])));
   });
 
   it("rechaza un total que no es la suma de las líneas", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X2"), pedido("cliente", [linea("labial")], { total: 1 })));
+    await assertFails(crear(como("cliente"), "X2", pedido("cliente", [linea("labial")], { total: 1 })));
   });
 
   it("rechaza productos desactivados", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X3"), pedido("cliente", [linea("descontinuado")])));
+    await assertFails(crear(como("cliente"), "X3", pedido("cliente", [linea("descontinuado")])));
   });
 
   it("rechaza productos que no existen", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X4"), pedido("cliente", [linea("inventado", 1, 1)])));
+    await assertFails(crear(como("cliente"), "X4", pedido("cliente", [linea("inventado", 1, 1)])));
   });
 
   it("rechaza más de 8 líneas", async () => {
     const items = Array.from({ length: 9 }, () => linea("labial"));
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X5"), pedido("cliente", items)));
+    await assertFails(crear(como("cliente"), "X5", pedido("cliente", items)));
   });
 
   it("rechaza cantidades inválidas (0, fraccionarias o > 50)", async () => {
     const db = como("cliente");
-    await assertFails(setDoc(doc(db, "pedidos/X6"), pedido("cliente", [linea("labial", 0)])));
-    await assertFails(setDoc(doc(db, "pedidos/X7"), pedido("cliente", [linea("labial", 1.5)])));
-    await assertFails(setDoc(doc(db, "pedidos/X8"), pedido("cliente", [linea("labial", 51)])));
+    await assertFails(crear(db, "X6", pedido("cliente", [linea("labial", 0)])));
+    await assertFails(crear(db, "X7", pedido("cliente", [linea("labial", 1.5)])));
+    await assertFails(crear(db, "X8", pedido("cliente", [linea("labial", 51)])));
   });
 
   it("rechaza un pedido vacío", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X9"), pedido("cliente", [])));
+    await assertFails(crear(como("cliente"), "X9", pedido("cliente", [])));
   });
 
   it("rechaza crear un pedido ya pagado", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X10"), pedido("cliente", [linea("labial")], { estado: "pagado" })));
+    await assertFails(crear(como("cliente"), "X10", pedido("cliente", [linea("labial")], { estado: "pagado" })));
   });
 
   it("rechaza crear un pedido con verificacionCliente de antemano", async () => {
     const extra = { verificacionCliente: { transaccionId: "t", estadoWompi: "APPROVED", montoCentavos: 1000000 } };
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X11"), pedido("cliente", [linea("labial")], extra)));
+    await assertFails(crear(como("cliente"), "X11", pedido("cliente", [linea("labial")], extra)));
   });
 
   it("rechaza crear un pedido a nombre de otro usuario", async () => {
-    await assertFails(setDoc(doc(como("cliente"), "pedidos/X12"), pedido("otro", [linea("labial")])));
+    await assertFails(crear(como("cliente"), "X12", pedido("otro", [linea("labial")])));
   });
 
   it("rechaza crear pedidos sin sesión", async () => {
-    await assertFails(setDoc(doc(anonimo(), "pedidos/X13"), pedido("cliente", [linea("labial")])));
+    await assertFails(crear(anonimo(), "X13", pedido("cliente", [linea("labial")])));
+  });
+});
+
+describe("pedidos: campos y referencia", () => {
+  it("rechaza una referencia distinta del id (un pago no puede confirmar dos pedidos)", async () => {
+    await assertFails(crear(como("cliente"), "N20", pedido("cliente", [linea("labial")], { referencia: "PEND" })));
+  });
+
+  it("rechaza campos que el checkout no escribe", async () => {
+    await assertFails(crear(como("cliente"), "N21", pedido("cliente", [linea("labial")], { wompiTransactionId: "otra" })));
+    await assertFails(crear(como("cliente"), "N22", pedido("cliente", [linea("labial")], { rol: "admin" })));
+  });
+
+  it("exige el consentimiento de tratamiento de datos", async () => {
+    await assertFails(crear(como("cliente"), "N23", pedido("cliente", [linea("labial")], { aceptoTerminos: false })));
+  });
+
+  it("rechaza una fecha de creación puesta por el cliente", async () => {
+    await assertFails(crear(como("cliente"), "N24", pedido("cliente", [linea("labial")], { createdAt: new Date(2020, 0, 1) })));
+  });
+
+  it("rechaza datos de envío gigantes o con campos extra", async () => {
+    const enorme = "x".repeat(5000);
+    const envio = { nombre: "Ana", email: "a@b.co", telefono: "3", direccion: enorme, ciudad: "Cali" };
+    await assertFails(crear(como("cliente"), "N25", pedido("cliente", [linea("labial")], { envio })));
+    const envioExtra = { nombre: "Ana", email: "a@b.co", telefono: "3", direccion: "C", ciudad: "Cali", nota: "x" };
+    await assertFails(crear(como("cliente"), "N26", pedido("cliente", [linea("labial")], { envio: envioExtra })));
   });
 });
 
@@ -203,8 +239,15 @@ describe("pedidos: lectura", () => {
 
 describe("usuarios: roles", () => {
   it("un usuario nuevo solo puede crearse como cliente", async () => {
-    await assertSucceeds(setDoc(doc(como("nuevo"), "usuarios/nuevo"), { uid: "nuevo", rol: "cliente" }));
-    await assertFails(setDoc(doc(como("nuevo2"), "usuarios/nuevo2"), { uid: "nuevo2", rol: "admin" }));
+    await assertSucceeds(setDoc(doc(como("nuevo"), "usuarios/nuevo"), { uid: "nuevo", rol: "cliente", email: "nuevo@t.co" }));
+    await assertFails(setDoc(doc(como("nuevo2"), "usuarios/nuevo2"), { uid: "nuevo2", rol: "admin", email: "nuevo2@t.co" }));
+  });
+
+  it("rechaza un perfil con el email de otra persona (suplantación ante el admin)", async () => {
+    await assertFails(
+      setDoc(doc(como("intruso"), "usuarios/intruso"), { uid: "intruso", rol: "cliente", email: "encargada@t.co" }),
+    );
+    await assertFails(updateDoc(doc(como("cliente"), "usuarios/cliente"), { email: "admin@t.co" }));
   });
 
   it("rechaza que el usuario cambie el campo uid de su perfil", async () => {
@@ -245,6 +288,7 @@ describe("suscriptores", () => {
   it("rechaza email distinto al id o sin consentimiento", async () => {
     await assertFails(setDoc(doc(anonimo(), "suscriptores/a@b.co"), { email: "x@b.co", aceptoTerminos: true }));
     await assertFails(setDoc(doc(anonimo(), "suscriptores/c@b.co"), { email: "c@b.co", aceptoTerminos: false }));
+    await assertFails(setDoc(doc(anonimo(), "suscriptores/d@b.co"), { email: "d@b.co", aceptoTerminos: true, relleno: "x".repeat(5000) }));
   });
 
   it("solo el staff lista la base de correos", async () => {

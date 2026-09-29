@@ -17,6 +17,13 @@ service cloud.firestore {
       return estaAutenticado() && rolDe(request.auth.uid) == 'admin';
     }
 
+    function emailEsElDeLaCuenta(data) {
+      return data.get('email', null) == request.auth.token.get('email', null);
+    }
+    function textoCorto(valor, max) {
+      return valor is string && valor.size() <= max;
+    }
+
     // ─── Integridad de precios en pedidos ─────────────────────────────────
     // El total se calcula en el navegador (carrito en localStorage), así que
     // sin esto alguien podría bajarse el precio antes de pagar y Wompi solo
@@ -25,19 +32,26 @@ service cloud.firestore {
     // producto y el total debe ser exactamente la suma de las líneas.
     // Máximo 8 líneas (cada get() cuenta contra el límite de lecturas por
     // evaluación de reglas) — mismo MAX_LINEAS_PEDIDO que src/lib/pedidos.ts.
-    function lineaValida(items, i) {
-      let producto = get(/databases/$(database)/documents/productos/$(items[i].productoId)).data;
-      return items[i].productoId is string
-        && items[i].cantidad is int && items[i].cantidad > 0 && items[i].cantidad <= 50
-        && items[i].precio is number
-        && producto.get('activo', true) != false
-        && items[i].precio == producto.precio;
+    // Firestore también limita a 1000 las expresiones evaluadas por regla:
+    // se usa `let` para no repetir items[i] (tests/rules cubre el caso de 8).
+    function lineaValida(l) {
+      let producto = get(/databases/$(database)/documents/productos/$(l.productoId)).data;
+      return l.cantidad is int && l.cantidad > 0 && l.cantidad <= 50
+        && l.precio == producto.precio
+        && producto.get('activo', true) != false;
     }
     function lineaOpcionalValida(items, i) {
-      return i >= items.size() || lineaValida(items, i);
+      return i >= items.size() || lineaValida(items[i]);
     }
     function subtotalLinea(items, i) {
       return i >= items.size() ? 0 : items[i].precio * items[i].cantidad;
+    }
+    function envioValido(envio) {
+      return envio is map
+        && envio.keys().hasOnly(['nombre', 'email', 'telefono', 'direccion', 'ciudad'])
+        && textoCorto(envio.nombre, 120) && textoCorto(envio.email, 200)
+        && textoCorto(envio.telefono, 40) && textoCorto(envio.direccion, 300)
+        && textoCorto(envio.ciudad, 120);
     }
     function pedidoConPreciosValidos(data) {
       let items = data.itemsSnapshot;
@@ -59,10 +73,14 @@ service cloud.firestore {
     match /usuarios/{uid} {
       allow get: if estaAutenticado() && (request.auth.uid == uid || esStaff());
       allow list: if esAdmin();
+      // El "email" del perfil debe ser el de la cuenta autenticada: es lo que
+      // el admin ve en /admin/usuarios para decidir a quién dar un rol, así
+      // que nadie puede hacerse pasar por otra persona (p. ej. la encargada).
       allow create: if estaAutenticado()
                     && request.auth.uid == uid
                     && request.resource.data.uid == uid
-                    && request.resource.data.rol == 'cliente';
+                    && request.resource.data.rol == 'cliente'
+                    && emailEsElDeLaCuenta(request.resource.data);
       // El dueño tampoco puede cambiar el campo "uid": si pudiera apuntarlo
       // a otra cuenta, un admin que ve SU email en /admin/usuarios terminaría
       // otorgándole el rol a esa otra cuenta.
@@ -70,7 +88,8 @@ service cloud.firestore {
                     && (
                       (request.auth.uid == uid
                        && request.resource.data.rol == resource.data.rol
-                       && request.resource.data.uid == uid)
+                       && request.resource.data.uid == uid
+                       && emailEsElDeLaCuenta(request.resource.data))
                       || esAdmin()
                     );
       allow delete: if false;
@@ -105,10 +124,21 @@ service cloud.firestore {
                  && (resource.data.userId == request.auth.uid || esStaff());
       allow list: if esStaff()
                   || (estaAutenticado() && resource.data.userId == request.auth.uid);
+      // Además: el campo "referencia" debe ser el id del documento (es lo que
+      // Wompi devuelve y lo que el staff compara al verificar — si fueran
+      // distintos, un solo pago podría "confirmar" dos pedidos), solo se
+      // aceptan los campos que escribe el checkout, con tamaños acotados, el
+      // consentimiento es obligatorio y la fecha la pone el servidor.
       allow create: if estaAutenticado()
+                    && request.resource.data.keys().hasOnly([
+                         'referencia', 'userId', 'itemsSnapshot', 'total', 'envio',
+                         'aceptoTerminos', 'estado', 'createdAt', 'updatedAt'])
+                    && request.resource.data.referencia == referencia
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.estado == 'pendiente'
-                    && !('verificacionCliente' in request.resource.data)
+                    && request.resource.data.aceptoTerminos == true
+                    && request.resource.data.createdAt == request.time
+                    && envioValido(request.resource.data.envio)
                     && pedidoConPreciosValidos(request.resource.data);
       allow update: if esStaff()
                     || (
@@ -139,7 +169,8 @@ service cloud.firestore {
     // el staff — es información personal de terceros.
     match /suscriptores/{email} {
       allow get, list, delete: if esStaff();
-      allow create, update: if request.resource.data.email is string
+      allow create, update: if request.resource.data.keys().hasOnly(['email', 'aceptoTerminos', 'createdAt'])
+                             && textoCorto(request.resource.data.email, 200)
                              && request.resource.data.email == email
                              && request.resource.data.aceptoTerminos == true;
     }

@@ -10,9 +10,9 @@ const WOMPI_API_BASE = ES_SANDBOX ? "https://sandbox.wompi.co/v1" : "https://pro
 
 export type EstadoPedido = "pendiente" | "pagado" | "fallido" | "cancelado";
 
-// Servicio que calcula la firma de integridad (ver firma-wompi/). Wompi la
+// Servicio que calcula la firma de integridad (ver servicio-firmas/). Wompi la
 // exige en el Web Checkout y su secreto no puede estar en el navegador.
-const URL_FIRMA = process.env.NEXT_PUBLIC_WOMPI_FIRMA_URL;
+const URL_FIRMA = process.env.NEXT_PUBLIC_FIRMA_URL;
 
 export class PagosNoConfiguradosError extends Error {}
 
@@ -20,7 +20,7 @@ export async function obtenerFirmaIntegridad(
   referencia: string,
   idToken: string,
 ): Promise<{ firma: string; montoCentavos: number }> {
-  if (!URL_FIRMA) throw new PagosNoConfiguradosError("Falta NEXT_PUBLIC_WOMPI_FIRMA_URL");
+  if (!URL_FIRMA) throw new PagosNoConfiguradosError("Falta NEXT_PUBLIC_FIRMA_URL");
   const res = await fetch(`${URL_FIRMA.replace(/\/$/, "")}/firma`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },

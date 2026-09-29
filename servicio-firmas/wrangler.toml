@@ -1,4 +1,4 @@
-name = "aura-firma-wompi"
+name = "aura-firmas"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
@@ -6,5 +6,6 @@ compatibility_date = "2026-09-01"
 FIREBASE_PROJECT_ID = "tienda-productos-aura-esencia"
 ORIGENES_PERMITIDOS = "https://tienda-productos-aura-esencia.web.app,https://tienda-productos-aura-esencia.firebaseapp.com,http://localhost:3000"
 
-# El secreto de integridad NO va acá. Se carga una sola vez con:
-#   npx wrangler secret put WOMPI_INTEGRITY_SECRET
+# Los secretos NO van acá. Se cargan una sola vez con `npx wrangler secret put <NOMBRE>`:
+#   WOMPI_INTEGRITY_SECRET
+#   CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
