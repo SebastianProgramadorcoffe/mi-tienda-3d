@@ -7,5 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    // Las pruebas de reglas necesitan el emulador de Firestore: `npm run test:rules`.
+    exclude: ['**/node_modules/**', 'tests/rules/**'],
   },
 })

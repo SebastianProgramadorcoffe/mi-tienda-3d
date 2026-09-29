@@ -44,7 +44,11 @@ npm install
 npm run dev      # http://localhost:3000
 npm run build    # genera ./out (export estático)
 npm run lint
+npm run test         # pruebas unitarias
+npm run test:rules   # pruebas de firestore.rules contra el emulador local (requiere Java 21+)
 ```
+
+`test:rules` usa un proyecto `demo-` aislado: nunca toca la base de datos real. Correrlo antes de desplegar cualquier cambio en `firestore.rules`.
 
 ## Firebase: reglas y roles
 
@@ -68,7 +72,9 @@ Desde ahí, ese admin puede promover a otros usuarios desde `/admin/usuarios`.
 
 - `usuarios/{uid}` — perfil + rol. Se crea automáticamente al iniciar sesión (email o Google).
 - `productos/{id}` — catálogo. Incluye `imagen` (portada), `imagenes[]` (galería), `modelo3d?`, `genero` (`dama`/`caballero`/`unisex`), `stock`, `activo`.
-- `pedidos/{referencia}` — un pedido por compra, ID = referencia de Wompi. `estado`: `pendiente` → `pagado`/`fallido`/`cancelado` (se actualiza en `/checkout/confirmacion` consultando el estado real a la API de Wompi, nunca confiando en los parámetros de la URL).
+- `pedidos/{referencia}` — un pedido por compra, ID = referencia de Wompi. `estado`: `pendiente` → `pagado`/`fallido`/`cancelado`. Las reglas validan cada línea contra el precio vigente en `productos` (máximo 8 productos distintos por pedido) y que el total sea la suma exacta.
+  - **El cliente nunca puede marcar su pedido como `pagado`** (la verificación en su navegador se puede saltar). Si Wompi le aprueba el pago, `/checkout/confirmacion` guarda `verificacionCliente` y el pedido queda `pendiente`.
+  - **El staff confirma el pago** en `/admin/pedidos` con el botón "Verificar pago en Wompi": consulta a Wompi desde el navegador del staff, comprueba referencia y monto, y solo entonces marca `pagado`. No despachar pedidos que sigan en `pendiente`.
 - `suscriptores/{email}` — newsletter (footer del sitio).
 
 ## Funcionalidades

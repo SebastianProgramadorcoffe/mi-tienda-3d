@@ -38,6 +38,15 @@ describe("obtenerEstadoTransaccion", () => {
     expect(resultado.estado).toBe("pendiente");
   });
 
+  it("codifica el id de transacción para que no pueda cambiar la ruta consultada", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: {} }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await obtenerEstadoTransaccion("../merchants/x");
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/transactions\/\.\.%2Fmerchants%2Fx$/));
+  });
+
   it("lanza un error cuando Wompi responde con un status HTTP no exitoso", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 

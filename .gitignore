@@ -29,6 +29,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+firestore-debug.log
+firebase-debug.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -42,3 +44,6 @@ next-env.d.ts
 
 # herramientas locales (estado del agente, no parte del proyecto)
 .serena/
+
+# caché local de despliegue de Firebase
+.firebase/

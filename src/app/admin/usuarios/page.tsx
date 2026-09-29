@@ -23,7 +23,9 @@ function ListaUsuarios() {
   useEffect(() => {
     async function cargar() {
       const snapshot = await getDocs(query(collection(db, "usuarios"), orderBy("email", "asc")));
-      setUsuarios(snapshot.docs.map((d) => d.data() as UsuarioDoc));
+      // El uid se toma del id del documento, nunca del campo "uid" que el
+      // propio usuario escribió en su perfil.
+      setUsuarios(snapshot.docs.map((d) => ({ ...(d.data() as UsuarioDoc), uid: d.id })));
       setCargando(false);
     }
     cargar();

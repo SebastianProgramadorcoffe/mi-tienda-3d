@@ -16,6 +16,7 @@ interface Pedido {
   total: number;
   estado: "pendiente" | "pagado" | "fallido" | "cancelado";
   itemsSnapshot?: { nombre: string; cantidad: number; color?: string | null }[];
+  verificacionCliente?: unknown;
   createdAt?: { toDate: () => Date };
 }
 
@@ -73,7 +74,7 @@ function CuentaContenido() {
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-white text-sm font-medium">{p.referencia}</p>
                     <span className="text-[10px] uppercase tracking-widest" style={{ color: COLOR_ESTADO[p.estado] }}>
-                      {p.estado}
+                      {p.estado === "pendiente" && p.verificacionCliente ? "pago en verificación" : p.estado}
                     </span>
                   </div>
                   <p className="text-white/30 text-xs mb-1">

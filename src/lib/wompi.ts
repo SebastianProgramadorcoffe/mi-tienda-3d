@@ -20,7 +20,9 @@ export async function obtenerEstadoTransaccion(transaccionId: string): Promise<{
   montoCentavos: number;
   referencia: string;
 }> {
-  const res = await fetch(`${WOMPI_API_BASE}/transactions/${transaccionId}`);
+  // El id llega en la URL de retorno (editable), así que se codifica para
+  // que no pueda apuntar a otra ruta de la API.
+  const res = await fetch(`${WOMPI_API_BASE}/transactions/${encodeURIComponent(transaccionId)}`);
   if (!res.ok) throw new Error("No se pudo verificar la transacción con Wompi.");
   const json = await res.json();
   const estadoWompi: string = json?.data?.status ?? "ERROR";

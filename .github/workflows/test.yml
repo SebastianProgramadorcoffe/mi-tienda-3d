@@ -24,3 +24,28 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Chequeo de tipos
+        run: npx tsc --noEmit
+
+  reglas-firestore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # El emulador de Firestore corre sobre Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas de reglas contra el emulador
+        run: npm run test:rules

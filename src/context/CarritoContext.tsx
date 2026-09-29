@@ -41,6 +41,7 @@ interface ContextoCarrito {
   quitar: (clave: string) => void;
   cambiarCantidad: (clave: string, cantidad: number) => void;
   vaciar: () => void;
+  reemplazarItems: (items: ItemCarrito[]) => void;
   toggleCarrito: () => void;
   abrirCarrito: () => void;
   cerrarCarrito: () => void;
@@ -125,6 +126,7 @@ export function CarritoProvider({ children }: { children: ReactNode }) {
       quitar: (clave) => dispatch({ type: "QUITAR", clave }),
       cambiarCantidad: (clave, cantidad) => dispatch({ type: "CAMBIAR_CANTIDAD", clave, cantidad }),
       vaciar: () => dispatch({ type: "VACIAR" }),
+      reemplazarItems: (items) => dispatch({ type: "HIDRATAR", items }),
       toggleCarrito: () => dispatch({ type: "TOGGLE_CARRITO" }),
       abrirCarrito: () => dispatch({ type: "ABRIR_CARRITO" }),
       cerrarCarrito: () => dispatch({ type: "CERRAR_CARRITO" }),

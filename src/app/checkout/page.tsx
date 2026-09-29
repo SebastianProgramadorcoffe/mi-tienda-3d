@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useCarrito } from "../../context/CarritoContext";
 import { useAuth } from "../../context/AuthContext";
 import { formatearPrecio } from "../../lib/utils";
 import { WOMPI_LLAVE_PUBLICA, WOMPI_URL_CHECKOUT } from "../../lib/wompi";
+import { mapearProducto } from "../../lib/productosCache";
+import { MAX_LINEAS_PEDIDO, sincronizarItemsConCatalogo, totalEnCentavos } from "../../lib/pedidos";
 import { Navbar } from "../../components/Navbar";
 import { CarritoDrawer } from "../../components/CarritoDrawer";
 
@@ -19,7 +22,7 @@ function generarReferencia() {
 }
 
 export default function PaginaCheckout() {
-  const { items, totalPrecio, vaciar } = useCarrito();
+  const { items, totalPrecio, vaciar, reemplazarItems } = useCarrito();
   const { usuario, cargando: cargandoAuth } = useAuth();
   const router = useRouter();
 
@@ -41,6 +44,38 @@ export default function PaginaCheckout() {
     if (!cargandoAuth && !usuario) router.replace("/login");
   }, [cargandoAuth, usuario, router]);
 
+  // Las reglas de Firestore rechazan un pedido cuyos precios no coincidan
+  // con el catálogo vigente, así que antes de pagar se reemplaza la copia
+  // del carrito (localStorage) por los productos actuales.
+  const [preciosConfirmados, setPreciosConfirmados] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const sincronizacionIniciada = useRef(false);
+
+  useEffect(() => {
+    if (sincronizacionIniciada.current || items.length === 0) return;
+    sincronizacionIniciada.current = true;
+
+    const ids = [...new Set(items.map((i) => i.producto.id))];
+    Promise.all(ids.map((id) => getDoc(doc(db, "productos", id))))
+      .then((snaps) => {
+        const vigentes = new Map(
+          snaps.filter((s) => s.exists()).map((s) => [s.id, mapearProducto(s.id, s.data())]),
+        );
+        const resultado = sincronizarItemsConCatalogo(items, vigentes);
+        reemplazarItems(resultado.items);
+        const partes: string[] = [];
+        if (resultado.preciosCambiados.length > 0) {
+          partes.push(`Se actualizó el precio de: ${resultado.preciosCambiados.join(", ")}.`);
+        }
+        if (resultado.noDisponibles.length > 0) {
+          partes.push(`Ya no están disponibles y se quitaron del carrito: ${resultado.noDisponibles.join(", ")}.`);
+        }
+        setAviso(partes.join(" "));
+      })
+      .catch(() => setAviso("No pudimos confirmar los precios vigentes. Si el pago no inicia, recarga la página."))
+      .finally(() => setPreciosConfirmados(true));
+  }, [items, reemplazarItems]);
+
   async function irAWompi() {
     if (!usuario || !nombre || !email || !telefono || !direccion) {
       alert("Por favor completa todos los campos");
@@ -50,11 +85,14 @@ export default function PaginaCheckout() {
       alert("Debes aceptar la Política de Tratamiento de Datos y los Términos y Condiciones para continuar.");
       return;
     }
+    if (items.length > MAX_LINEAS_PEDIDO) {
+      alert(`Por ahora un pedido puede tener hasta ${MAX_LINEAS_PEDIDO} productos distintos. Divide tu compra en dos pedidos.`);
+      return;
+    }
 
     setProcesando(true);
     try {
-      // Wompi recibe el monto en centavos
-      const montoCentavos = totalPrecio * 100;
+      const montoCentavos = totalEnCentavos(totalPrecio);
 
       await setDoc(doc(db, "pedidos", referencia), {
         referencia,
@@ -90,8 +128,12 @@ export default function PaginaCheckout() {
       });
 
       window.location.href = `${WOMPI_URL_CHECKOUT}?${params.toString()}`;
-    } catch {
-      alert("No se pudo iniciar el pago. Intenta de nuevo.");
+    } catch (e) {
+      if (e instanceof FirebaseError && e.code === "permission-denied") {
+        alert("Los precios de algunos productos cambiaron mientras comprabas. Recarga la página para ver el total actualizado.");
+      } else {
+        alert("No se pudo iniciar el pago. Intenta de nuevo.");
+      }
       setProcesando(false);
     }
   }
@@ -103,6 +145,7 @@ export default function PaginaCheckout() {
         <CarritoDrawer />
         <main className="min-h-screen flex items-center justify-center" style={{ background: "#080510" }}>
           <div className="text-center">
+            {aviso && <p className="text-amber-300/80 text-xs mb-4 max-w-sm">{aviso}</p>}
             <p className="text-white/40 text-sm mb-4">Tu carrito está vacío</p>
             <Link href="/" className="text-rose-300/70 text-xs underline">Volver a la tienda</Link>
           </div>
@@ -199,6 +242,13 @@ export default function PaginaCheckout() {
                 </div>
               </div>
 
+              {aviso && (
+                <p className="text-amber-300/80 text-xs leading-relaxed mb-4 rounded-xl p-3"
+                  style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)" }}>
+                  {aviso}
+                </p>
+              )}
+
               <label className="flex items-start gap-2 text-white/40 text-[11px] leading-relaxed mb-4">
                 <input type="checkbox" checked={aceptoTerminos} onChange={(e) => setAceptoTerminos(e.target.checked)}
                   className="mt-0.5" required />
@@ -217,16 +267,16 @@ export default function PaginaCheckout() {
               {/* Botón Wompi */}
               <motion.button
                 onClick={irAWompi}
-                disabled={procesando}
+                disabled={procesando || !preciosConfirmados}
                 className="w-full py-4 rounded-2xl text-sm font-bold tracking-widest uppercase text-black flex items-center justify-center gap-3"
-                style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", boxShadow: "0 8px 30px rgba(244,63,94,0.3)", opacity: procesando ? 0.7 : 1 }}
-                whileHover={{ scale: procesando ? 1 : 1.02, boxShadow: "0 12px 40px rgba(244,63,94,0.4)" }}
+                style={{ background: "linear-gradient(90deg, #fda4af, #fcd34d)", boxShadow: "0 8px 30px rgba(244,63,94,0.3)", opacity: procesando || !preciosConfirmados ? 0.7 : 1 }}
+                whileHover={{ scale: procesando || !preciosConfirmados ? 1 : 1.02, boxShadow: "0 12px 40px rgba(244,63,94,0.4)" }}
                 whileTap={{ scale: 0.98 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
                 </svg>
-                {procesando ? "Procesando..." : "Pagar con Wompi"}
+                {procesando ? "Procesando..." : !preciosConfirmados ? "Confirmando precios..." : "Pagar con Wompi"}
               </motion.button>
 
               <p className="text-white/20 text-[10px] text-center mt-3 leading-relaxed">

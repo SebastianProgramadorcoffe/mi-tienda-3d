@@ -17,6 +17,41 @@ service cloud.firestore {
       return estaAutenticado() && rolDe(request.auth.uid) == 'admin';
     }
 
+    // ─── Integridad de precios en pedidos ─────────────────────────────────
+    // El total se calcula en el navegador (carrito en localStorage), así que
+    // sin esto alguien podría bajarse el precio antes de pagar y Wompi solo
+    // cobraría el monto alterado. Sin backend propio, esta es la única capa
+    // que lo impide: cada línea debe tener el precio REAL vigente del
+    // producto y el total debe ser exactamente la suma de las líneas.
+    // Máximo 8 líneas (cada get() cuenta contra el límite de lecturas por
+    // evaluación de reglas) — mismo MAX_LINEAS_PEDIDO que src/lib/pedidos.ts.
+    function lineaValida(items, i) {
+      let producto = get(/databases/$(database)/documents/productos/$(items[i].productoId)).data;
+      return items[i].productoId is string
+        && items[i].cantidad is int && items[i].cantidad > 0 && items[i].cantidad <= 50
+        && items[i].precio is number
+        && producto.get('activo', true) != false
+        && items[i].precio == producto.precio;
+    }
+    function lineaOpcionalValida(items, i) {
+      return i >= items.size() || lineaValida(items, i);
+    }
+    function subtotalLinea(items, i) {
+      return i >= items.size() ? 0 : items[i].precio * items[i].cantidad;
+    }
+    function pedidoConPreciosValidos(data) {
+      let items = data.itemsSnapshot;
+      return items is list && items.size() > 0 && items.size() <= 8
+        && lineaOpcionalValida(items, 0) && lineaOpcionalValida(items, 1)
+        && lineaOpcionalValida(items, 2) && lineaOpcionalValida(items, 3)
+        && lineaOpcionalValida(items, 4) && lineaOpcionalValida(items, 5)
+        && lineaOpcionalValida(items, 6) && lineaOpcionalValida(items, 7)
+        && data.total == subtotalLinea(items, 0) + subtotalLinea(items, 1)
+                       + subtotalLinea(items, 2) + subtotalLinea(items, 3)
+                       + subtotalLinea(items, 4) + subtotalLinea(items, 5)
+                       + subtotalLinea(items, 6) + subtotalLinea(items, 7);
+    }
+
     // ─── usuarios/{uid} ───────────────────────────────────────────────────
     // Perfil + rol de cada cuenta. El doc se crea automáticamente al
     // iniciar sesión (ver AuthContext) y siempre nace con rol 'cliente':
@@ -28,10 +63,14 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.uid == uid
                     && request.resource.data.rol == 'cliente';
+      // El dueño tampoco puede cambiar el campo "uid": si pudiera apuntarlo
+      // a otra cuenta, un admin que ve SU email en /admin/usuarios terminaría
+      // otorgándole el rol a esa otra cuenta.
       allow update: if estaAutenticado()
                     && (
                       (request.auth.uid == uid
-                       && request.resource.data.rol == resource.data.rol)
+                       && request.resource.data.rol == resource.data.rol
+                       && request.resource.data.uid == uid)
                       || esAdmin()
                     );
       allow delete: if false;
@@ -46,14 +85,17 @@ service cloud.firestore {
     }
 
     // ─── pedidos/{referencia} ─────────────────────────────────────────────
-    // El cliente crea su propio pedido (al ir a pagar) y SIEMPRE nace en
-    // estado 'pendiente' — nadie puede crear un pedido ya "pagado" sin
-    // pasar por Wompi. Al volver de Wompi, el propio dueño puede pasar su
-    // pedido de 'pendiente' a un estado terminal (eso hace
-    // /checkout/confirmacion), pero solo tocando estado/wompiTransactionId/
-    // updatedAt — no puede reescribir el total, los items ni nada más.
-    // Staff puede actualizar cualquier campo en cualquier momento. Sin
-    // borrado.
+    // El cliente crea su propio pedido (al ir a pagar), SIEMPRE en estado
+    // 'pendiente' y con precios validados contra el catálogo.
+    //
+    // El dueño NUNCA puede escribir estado:'pagado': Firestore no puede
+    // consultar a Wompi, y la verificación en /checkout/confirmacion corre
+    // en el navegador del cliente (se la puede saltar con la consola). Un
+    // pago aprobado solo se deja como "verificacionCliente" (informativo);
+    // el staff lo confirma desde /admin/pedidos, que vuelve a consultar a
+    // Wompi desde SU navegador. 'fallido'/'cancelado' sí los puede escribir
+    // el dueño: nadie gana nada diciendo que su propia compra no se hizo.
+    // Staff puede actualizar cualquier campo. Sin borrado.
     match /pedidos/{referencia} {
       // "list" exige que la consulta ya venga filtrada por userId==uid
       // (ver /cuenta); si no, Firestore rechaza la consulta completa antes
@@ -65,15 +107,27 @@ service cloud.firestore {
                   || (estaAutenticado() && resource.data.userId == request.auth.uid);
       allow create: if estaAutenticado()
                     && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.estado == 'pendiente';
+                    && request.resource.data.estado == 'pendiente'
+                    && !('verificacionCliente' in request.resource.data)
+                    && pedidoConPreciosValidos(request.resource.data);
       allow update: if esStaff()
                     || (
                       estaAutenticado()
                       && resource.data.userId == request.auth.uid
                       && resource.data.estado == 'pendiente'
-                      && request.resource.data.estado in ['pagado', 'fallido', 'cancelado']
-                      && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['estado', 'wompiTransactionId', 'updatedAt'])
+                      && (
+                        (
+                          request.resource.data.estado == 'pendiente'
+                          && request.resource.data.verificacionCliente is map
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['verificacionCliente', 'updatedAt'])
+                        )
+                        || (
+                          request.resource.data.estado in ['fallido', 'cancelado']
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['estado', 'wompiTransactionId', 'updatedAt'])
+                        )
+                      )
                     );
       allow delete: if false;
     }

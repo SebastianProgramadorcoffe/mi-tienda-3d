@@ -7,11 +7,15 @@ import { motion } from "framer-motion";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 import { obtenerEstadoTransaccion, type EstadoPedido } from "../../../lib/wompi";
+import { estadoTrasVerificarPago, type VerificacionCliente } from "../../../lib/pedidos";
 import { Navbar } from "../../../components/Navbar";
 import { CarritoDrawer } from "../../../components/CarritoDrawer";
 
-const MENSAJE: Record<EstadoPedido, { titulo: string; detalle: string; color: string }> = {
+type EstadoVista = EstadoPedido | "aprobadoPorConfirmar";
+
+const MENSAJE: Record<EstadoVista, { titulo: string; detalle: string; color: string }> = {
   pagado:    { titulo: "¡Pago confirmado!", detalle: "Tu pedido fue recibido y ya lo estamos preparando.", color: "rgba(52,211,153,1)" },
+  aprobadoPorConfirmar: { titulo: "¡Pago recibido!", detalle: "Wompi aprobó tu pago. Lo confirmamos en breve y empezamos a preparar tu pedido.", color: "rgba(52,211,153,1)" },
   pendiente: { titulo: "Pago en proceso", detalle: "Wompi todavía está confirmando tu pago. Te avisaremos por correo.", color: "rgba(251,191,36,1)" },
   fallido:   { titulo: "El pago no se pudo procesar", detalle: "Intenta de nuevo o usa otro método de pago.", color: "rgba(248,113,113,1)" },
   cancelado: { titulo: "Pago cancelado", detalle: "No se realizó ningún cobro.", color: "rgba(255,255,255,0.5)" },
@@ -22,7 +26,7 @@ function ConfirmacionContenido() {
   const referencia = params.get("ref");
   const transaccionId = params.get("id");
 
-  const [estado, setEstado] = useState<EstadoPedido | null>(null);
+  const [estado, setEstado] = useState<EstadoVista | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
@@ -48,26 +52,47 @@ function ConfirmacionContenido() {
         const pedido = pedidoSnap.data();
 
         // Si ya se verificó antes (ej. recargaste esta página), no se
-        // vuelve a intentar el updateDoc: las reglas solo permiten esa
-        // transición una vez (desde 'pendiente'), y el resultado guardado
-        // ya es el definitivo.
+        // vuelve a escribir: el resultado guardado ya es el definitivo.
         if (pedido.estado !== "pendiente") {
           setEstado(pedido.estado as EstadoPedido);
           return;
         }
+        if (pedido.verificacionCliente) {
+          setEstado("aprobadoPorConfirmar");
+          return;
+        }
 
         const transaccion = await obtenerEstadoTransaccion(transaccionId);
-        const montoEsperado = Math.round(Number(pedido.total) * 100);
-        const coincide = transaccion.referencia === referencia && transaccion.montoCentavos === montoEsperado;
+        const estadoFinal = estadoTrasVerificarPago(transaccion, { referencia, total: Number(pedido.total) });
 
-        const estadoFinal = coincide ? transaccion.estado : "fallido";
+        if (estadoFinal === "pagado") {
+          // El cliente no puede marcar su propio pedido como pagado (ver
+          // firestore.rules): se deja constancia y el staff lo confirma
+          // consultando a Wompi desde /admin/pedidos.
+          const verificacionCliente: VerificacionCliente = {
+            transaccionId,
+            estadoWompi: transaccion.estadoWompi,
+            montoCentavos: transaccion.montoCentavos,
+          };
+          await updateDoc(doc(db, "pedidos", referencia), { verificacionCliente, updatedAt: serverTimestamp() });
+          setEstado("aprobadoPorConfirmar");
+          return;
+        }
+
+        if (estadoFinal === "pendiente") {
+          setEstado("pendiente");
+          return;
+        }
+
         await updateDoc(doc(db, "pedidos", referencia), {
           estado: estadoFinal,
           wompiTransactionId: transaccionId,
           updatedAt: serverTimestamp(),
         });
 
-        if (!coincide) {
+        if (transaccion.estado === "pagado") {
+          // Wompi aprobó, pero la transacción no corresponde a este pedido
+          // (otra referencia u otro monto).
           setError("El monto cobrado no coincide con tu pedido. No se confirmó como pagado — contáctanos con tu referencia antes de reintentar.");
           return;
         }
