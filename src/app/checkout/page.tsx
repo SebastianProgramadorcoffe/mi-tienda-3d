@@ -6,12 +6,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { FirebaseError } from "firebase/app";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useCarrito } from "../../context/CarritoContext";
 import { useAuth } from "../../context/AuthContext";
 import { formatearPrecio } from "../../lib/utils";
-import { WOMPI_LLAVE_PUBLICA, WOMPI_URL_CHECKOUT } from "../../lib/wompi";
+import {
+  PagosNoConfiguradosError,
+  WOMPI_LLAVE_PUBLICA,
+  WOMPI_URL_CHECKOUT,
+  obtenerFirmaIntegridad,
+} from "../../lib/wompi";
 import { mapearProducto } from "../../lib/productosCache";
 import { MAX_LINEAS_PEDIDO, sincronizarItemsConCatalogo, totalEnCentavos } from "../../lib/pedidos";
 import { Navbar } from "../../components/Navbar";
@@ -36,7 +41,7 @@ export default function PaginaCheckout() {
 
   // Se genera una sola vez por visita a la página (no en cada render/tecla),
   // ya que se usa como ID del pedido en Firestore y en la URL de Wompi.
-  const [referencia] = useState(generarReferencia);
+  const [referencia, setReferencia] = useState(generarReferencia);
 
   // El checkout requiere sesión: así el pedido queda asociado a un usuario
   // y las reglas de Firestore pueden verificar que el dueño lo está creando.
@@ -91,9 +96,8 @@ export default function PaginaCheckout() {
     }
 
     setProcesando(true);
+    let pedidoCreado = false;
     try {
-      const montoCentavos = totalEnCentavos(totalPrecio);
-
       await setDoc(doc(db, "pedidos", referencia), {
         referencia,
         userId: usuario.uid,
@@ -113,6 +117,12 @@ export default function PaginaCheckout() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      pedidoCreado = true;
+
+      // El monto y la firma salen del pedido guardado (ver firma-wompi/),
+      // no del carrito: Wompi rechaza el pago si alguien altera el monto.
+      const { firma, montoCentavos } = await obtenerFirmaIntegridad(referencia, await usuario.getIdToken());
+      if (montoCentavos !== totalEnCentavos(totalPrecio)) throw new Error("El monto firmado no coincide con el carrito");
 
       vaciar();
 
@@ -121,6 +131,7 @@ export default function PaginaCheckout() {
         "currency":              "COP",
         "amount-in-cents":       montoCentavos.toString(),
         "reference":             referencia,
+        "signature:integrity":   firma,
         "customer-data:email":   email,
         "customer-data:full-name": nombre,
         "customer-data:phone-number": telefono,
@@ -129,7 +140,15 @@ export default function PaginaCheckout() {
 
       window.location.href = `${WOMPI_URL_CHECKOUT}?${params.toString()}`;
     } catch (e) {
-      if (e instanceof FirebaseError && e.code === "permission-denied") {
+      if (pedidoCreado) {
+        // Ese pedido ya existe y no se puede reescribir: se cancela y el
+        // próximo intento usa una referencia nueva.
+        updateDoc(doc(db, "pedidos", referencia), { estado: "cancelado", updatedAt: serverTimestamp() }).catch(() => {});
+        setReferencia(generarReferencia());
+      }
+      if (e instanceof PagosNoConfiguradosError) {
+        alert("Los pagos en línea todavía no están habilitados en la tienda. Escríbenos por WhatsApp para completar tu compra.");
+      } else if (!pedidoCreado && e instanceof FirebaseError && e.code === "permission-denied") {
         alert("Los precios de algunos productos cambiaron mientras comprabas. Recarga la página para ver el total actualizado.");
       } else {
         alert("No se pudo iniciar el pago. Intenta de nuevo.");

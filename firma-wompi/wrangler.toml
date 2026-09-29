@@ -1,0 +1,10 @@
+name = "aura-firma-wompi"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "tienda-productos-aura-esencia"
+ORIGENES_PERMITIDOS = "https://tienda-productos-aura-esencia.web.app,https://tienda-productos-aura-esencia.firebaseapp.com,http://localhost:3000"
+
+# El secreto de integridad NO va acá. Se carga una sola vez con:
+#   npx wrangler secret put WOMPI_INTEGRITY_SECRET

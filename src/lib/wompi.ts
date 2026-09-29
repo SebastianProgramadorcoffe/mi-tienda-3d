@@ -10,6 +10,30 @@ const WOMPI_API_BASE = ES_SANDBOX ? "https://sandbox.wompi.co/v1" : "https://pro
 
 export type EstadoPedido = "pendiente" | "pagado" | "fallido" | "cancelado";
 
+// Servicio que calcula la firma de integridad (ver firma-wompi/). Wompi la
+// exige en el Web Checkout y su secreto no puede estar en el navegador.
+const URL_FIRMA = process.env.NEXT_PUBLIC_WOMPI_FIRMA_URL;
+
+export class PagosNoConfiguradosError extends Error {}
+
+export async function obtenerFirmaIntegridad(
+  referencia: string,
+  idToken: string,
+): Promise<{ firma: string; montoCentavos: number }> {
+  if (!URL_FIRMA) throw new PagosNoConfiguradosError("Falta NEXT_PUBLIC_WOMPI_FIRMA_URL");
+  const res = await fetch(`${URL_FIRMA.replace(/\/$/, "")}/firma`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ referencia }),
+  });
+  if (!res.ok) throw new Error(`No se pudo firmar el pago (HTTP ${res.status})`);
+  const json = await res.json();
+  if (typeof json?.firma !== "string" || typeof json?.montoCentavos !== "number") {
+    throw new Error("Respuesta de firma inválida");
+  }
+  return { firma: json.firma, montoCentavos: json.montoCentavos };
+}
+
 // Wompi permite consultar el estado real de una transacción con un GET
 // público (sin autenticación) usando el id que Wompi agrega al redirect.
 // Nunca hay que confiar en los parámetros de la URL de vuelta: se pueden

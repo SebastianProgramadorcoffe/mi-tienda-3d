@@ -1,6 +1,48 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { obtenerEstadoTransaccion } from "./wompi";
 
+// URL_FIRMA se lee al cargar el módulo, así que cada prueba lo importa de nuevo.
+async function importarConUrlFirma(url: string | undefined) {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_WOMPI_FIRMA_URL", url ?? "");
+  return import("./wompi");
+}
+
+describe("obtenerFirmaIntegridad", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("lanza PagosNoConfiguradosError si no hay URL del servicio de firma", async () => {
+    const { obtenerFirmaIntegridad, PagosNoConfiguradosError } = await importarConUrlFirma(undefined);
+    await expect(obtenerFirmaIntegridad("AURA-1", "tok")).rejects.toBeInstanceOf(PagosNoConfiguradosError);
+  });
+
+  it("pide la firma con el token de la sesión y devuelve firma y monto", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ firma: "abc", montoCentavos: 4590000 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { obtenerFirmaIntegridad } = await importarConUrlFirma("https://firma.ejemplo.workers.dev/");
+
+    const r = await obtenerFirmaIntegridad("AURA-1", "tok");
+
+    expect(r).toEqual({ firma: "abc", montoCentavos: 4590000 });
+    const [url, opciones] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://firma.ejemplo.workers.dev/firma");
+    expect(opciones.headers.Authorization).toBe("Bearer tok");
+    expect(JSON.parse(opciones.body)).toEqual({ referencia: "AURA-1" });
+  });
+
+  it("lanza error si el servicio responde con error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+    const { obtenerFirmaIntegridad } = await importarConUrlFirma("https://firma.ejemplo.workers.dev");
+    await expect(obtenerFirmaIntegridad("AURA-1", "tok")).rejects.toThrow("HTTP 403");
+  });
+});
+
 describe("obtenerEstadoTransaccion", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

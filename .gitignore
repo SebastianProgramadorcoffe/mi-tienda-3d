@@ -47,3 +47,7 @@ next-env.d.ts
 
 # caché local de despliegue de Firebase
 .firebase/
+
+# secretos locales del Worker (wrangler dev)
+.dev.vars
+.wrangler/

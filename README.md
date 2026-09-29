@@ -31,6 +31,8 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...
+
+NEXT_PUBLIC_WOMPI_FIRMA_URL=...   # URL del servicio de firma (ver firma-wompi/README.md)
 ```
 
 - Credenciales de Firebase: Firebase Console → Configuración del proyecto → "Tus apps".
@@ -94,7 +96,7 @@ Estado revisado el 2026-09-29. Hoy la tienda está publicada pero **no puede ven
 
 **Bloqueantes**
 
-- **Firma de integridad de Wompi.** La documentación oficial de Wompi marca `signature:integrity` como parámetro obligatorio del Web Checkout: SHA256 de `referencia + montoEnCentavos + moneda + secreto de integridad`. La tienda no lo envía, y el secreto no puede estar en el navegador. Hace falta un servicio pequeño del lado del servidor que calcule la firma. (Esto está verificado en la documentación, no con una compra real.)
+- **Publicar el servicio de firma de Wompi.** Wompi exige una firma de integridad (`signature:integrity`) en cada pago. La tienda ya la pide a un Cloudflare Worker gratuito (`firma-wompi/`), pero ese servicio hay que publicarlo una vez y configurar `NEXT_PUBLIC_WOMPI_FIRMA_URL`; los pasos están en [`firma-wompi/README.md`](firma-wompi/README.md). Mientras no esté publicado, el checkout le dice a la clienta que los pagos en línea no están habilitados.
 - **Llave de producción de Wompi.** Hoy `src/lib/wompi.ts` usa una llave de pruebas (`pub_test_...`).
 - **WhatsApp de ejemplo.** `src/lib/whatsapp.ts` tiene `573001234567`, así que los botones de contacto llevan a un número que no es de la tienda.
 - **Páginas legales incompletas.** Falta la razón social/NIT, y el aviso "plantilla pendiente de revisión legal" se ve en el sitio público. Además, el correo `contacto@auraesencia.com` es de un dominio cuya titularidad no está confirmada. Estas páginas son una plantilla, no asesoría jurídica: debe revisarlas un abogado.
